@@ -59,9 +59,25 @@ let fillMap (init:initialConfiguration): Map<lineName,line> =
 //TODO: get these two values below from a file
 let boardSize = 3
 
-let initBoard = "00r\n000\nr00"
+let initBoard = "00r000r00"
 
 let s1 = {size = boardSize; lines = fillMap (boardSize, initBoard); 
 board = fillArray (boardSize, initBoard)}
 
 s1.toString
+
+
+//validates if an initial configuration is valid
+let isValidBoard (b: string) : bool = false
+
+
+
+//checks if a string can be converted to a n  by n char list of lists
+// by checking if the length of the string is a perfect square
+let validStringLength (str: string) : bool =
+  double (int (sqrt (double (str.Length)))) = (sqrt (double (str.Length)))
+
+validStringLength initBoard
+
+//let stringToCharChar (input: string): char list list =
+  //if sqrt input.Length 
