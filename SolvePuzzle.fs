@@ -107,7 +107,6 @@ board = fillArray (boardSize, initBoard)}
 
 s1.toString
 
-<<<<<<< HEAD
 
 //validates if an initial configuration is valid
 let isValidBoard (b: string) : bool = false
@@ -123,5 +122,3 @@ validStringLength initBoard
 
 //let stringToCharChar (input: string): char list list =
   //if sqrt input.Length 
-=======
->>>>>>> 29b61c70a6fdde7593a62ee8831ef4970f5d9a2f
