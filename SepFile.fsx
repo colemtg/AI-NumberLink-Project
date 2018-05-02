@@ -10,9 +10,9 @@
 // Checking if a state is a goal state
 // g(s) calculation for board
 // h(s) calculation for board
+// get next states for a board
 
 //TODO: integrate file reading and randomly generated boards
-//TODO: GetNextStates function for BoardState
 //TODO: do A* and greedy best
 
 type Pos = int * int
@@ -31,11 +31,31 @@ with
 
   member l.AtGoal = l.endPos = l.goalPos
 
+//sets the Pos in the board to the char
+let rec replacePos (c: char)(p: Pos)(old: char list list): char list list =
+  match p with
+  (row,col) -> replaceHelper c old row col
+
+and replaceHelper (c:char)(old: char list list)(row: int)(col: int): char list list =
+  match old with
+  (x :: xs) when row = 0 -> inRow c x col :: replaceHelper c xs (row-1) col
+  | (x :: xs) -> x :: replaceHelper c xs (row-1) col
+  | [] -> []
+and inRow (c:char)(row: char list)(col:int) =
+  match row with
+  (x :: _) when col = 0 && x <> '0' && x <> c -> failwith "Position occupied with a different line"
+  | (_ :: xs) when col = 0 -> c :: inRow c xs (col-1)
+  | (x :: xs) -> x:: inRow c xs (col-1)
+  | [] -> []
+
+
+
+  
+
 
 //update this with functions for getting next states, getting cost and heuristic
 type BoardState = {size: int; lines: Map<char,Line>; board: char list list}
 with
-
   //g(s) = sum of length of all lines in state s
   member b.GetCost =
     Map.fold (fun state _ value -> state + value.length) 0 b.lines
@@ -46,7 +66,78 @@ with
   
   member b.AtGoal =
     Map.fold(fun state _ (value:Line) -> state && value.AtGoal) true b.lines
+  
+  //returns a board updated with the new pos of the end of the line
+  member b.Update(c:char)(p: Pos): BoardState =
+    let foundLine = Map.tryFind c b.lines in 
+    let lines' =
+      match foundLine with
+      None -> failwith "Trying to move line that doesn't exist"
+      | (Some l1) -> b.lines |> Map.remove c |> Map.add c (l1.UpdateEndPos p)
+    in
+    {size = b.size; lines = lines'; board = replacePos c p b.board}
 
+  //gets all of the possible next states
+  member b.GetNextStates : BoardState list =
+    let mutable boards = [b]
+    for (c,_) in Map.toList b.lines do
+      boards <- (List.append boards (b.GetNextStatesOfLine c))
+    List.tail boards
+
+
+ //gets next states of a paritcular line by checking if can move in a particualr direction
+ //TODO: fix so less stupid (hw2a might have a better way)
+  member b.GetNextStatesOfLine (c:char) : BoardState list =
+    match (b.CanMoveDown c), (b.CanMoveLeft c), (b.CanMoveRight c), (b.CanMoveUp c) with
+    ((Some p1), (Some p2), (Some p3), (Some p4)) -> b.Update c p1 :: b.Update c p2 :: b.Update c p3 :: [b.Update c p4]                                                                      
+    | ((Some p1), (Some p2), (Some p3), (None)) -> b.Update c p1 :: b.Update c p2 :: [b.Update c p3]
+    | ((Some p1), (Some p2), (None), (Some p4)) -> b.Update c p1 :: b.Update c p2  :: [b.Update c p4]
+    | ((Some p1), (None), (Some p3), (Some p4)) -> b.Update c p1  :: b.Update c p3 :: [b.Update c p4]
+    | ((None), (Some p2), (Some p3), (Some p4)) -> b.Update c p2 :: b.Update c p3 :: [b.Update c p4]
+    | ((Some p1), (Some p2), (None), (None)) -> b.Update c p1 :: [b.Update c p2]
+    | ((Some p1), (None), (Some p3), (None)) -> b.Update c p1 :: [b.Update c p3]
+    | ((None), (Some p2), (Some p3), (None)) -> b.Update c p2 :: [b.Update c p3]
+    | ((Some p1), (None), (None), (Some p4)) -> b.Update c p1 :: [b.Update c p4]
+    | ((None), (Some p2), (None), (Some p4)) -> b.Update c p2 :: [b.Update c p4]
+    | ((None), (None), (Some p3), (Some p4)) -> b.Update c p3 :: [b.Update c p4]
+    | ((Some p1), (None), (None), (None)) -> [b.Update c p1]
+    | ((None), (Some p2), (None), (None)) -> [b.Update c p2]
+    | ((None), (None), (Some p3), (None)) -> [b.Update c p3]
+    | ((None), (None), (None), (Some p4)) -> [b.Update c p4]
+    | ((None), (None), (None), (None)) -> []
+    
+//checks if line can move up and returns
+  member b.CanMoveUp (c:char) : Pos option = 
+    let foundLine = Map.tryFind c b.lines in
+      match foundLine with
+      (Some l1) -> match l1.endPos with
+                   (row, col) when (row-1>=0) && b.board.[row-1].[col] = '0' -> Some (row-1,col)
+                   |(_, _) -> None
+      | _ -> failwith "line does not exist"
+
+  member b.CanMoveDown (c:char): Pos option = 
+    let foundLine = Map.tryFind c b.lines in
+      match foundLine with
+      (Some l1) -> match l1.endPos with
+                   (row, col) when (row+1<b.size) && b.board.[row+1].[col] = '0' -> Some (row+1, col)
+                   |(_, _) -> None
+      | _ -> failwith "line does not exist"
+
+  member b.CanMoveRight (c:char): Pos option = 
+    let foundLine = Map.tryFind c b.lines in
+      match foundLine with
+      (Some l1) -> match l1.endPos with
+                   (row, col) when (col+1<b.size) && b.board.[row].[col+1] = '0' -> Some (row, col+1)
+                   |(_, _) ->  None
+      | _ -> failwith "line does not exist"
+
+  member b.CanMoveLeft (c:char): Pos option = 
+    let foundLine = Map.tryFind c b.lines in
+      match foundLine with
+      (Some l1) -> match l1.endPos with
+                   (row, col) when (col-1>=0) && b.board.[row].[col-1] = '0' -> Some (row, col-1)
+                   |(_, _)-> None
+      | _ -> failwith "line does not exist"
     
 
 //What the function that reads in puzzle from a file should return
@@ -114,8 +205,20 @@ let constructInitialBoard (f:FileInput): BoardState =
   | _  -> failwith "invalidBoard"
 
 //test board
-let testInput = (4, "98980660zab0ab0z")
+let testInput = (3, "0a000b0ab")
 let initialBoard = constructInitialBoard testInput
+initialBoard.GetNextStates
+initialBoard.GetNextStatesOfLine 'b'
+initialBoard.CanMoveLeft 'b'
 initialBoard.GetCost
 initialBoard.GetHeuristic
 initialBoard.AtGoal
+
+Map.toList initialBoard.lines
+
+// //manually move
+// let b = initialBoard.Update 'a' (1,1)
+// let b1 = b.Update 'a' (2,1)
+// let b2 = b1.Update 'b' (1,2)
+// let b3 = b2.Update 'b' (2,2)
+// b3.AtGoal
