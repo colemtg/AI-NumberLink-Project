@@ -1,0 +1,22 @@
+//For each value of m from 8 to 12 generate at least 5m problems with an m by m grid
+for m = 8 to 12
+  for i = 1 to 5m
+    str = fill with m*m '0's
+    //each problem should contain n letter pairs, m-3 to m
+    numPairs = random (m-3) to m
+    for pairs = 1 to numPairs
+      //first pair pos
+      pos = str.charAt(random 1 to m*m)
+      while(pos != '0')
+        pos = str.charAt(random 1 to m*m)
+      str.charAt(pos) = (char) pairs
+      
+      //second pair pos
+      pos = str.charAt(random 1 to m*m)
+      while(pos != '0')
+        pos = str.charAt(random 1 to m*m)
+      str.charAt(pos) = (char) pairs
+      
+    write to text file: m + str at file: puzzle_m_i
+      
+  
