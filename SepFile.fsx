@@ -29,7 +29,9 @@ with
     match (l.endPos, l.goalPos) with
     (x1,y1),(x2,y2) -> abs (x1-x2) + abs (y1-y2)
 
+  //checks if AtGoal
   member l.AtGoal = l.endPos = l.goalPos
+
 
 //sets the Pos in the board to the char
 let rec replacePos (c: char)(p: Pos)(old: char list list): char list list =
@@ -47,10 +49,6 @@ and inRow (c:char)(row: char list)(col:int) =
   | (_ :: xs) when col = 0 -> c :: inRow c xs (col-1)
   | (x :: xs) -> x:: inRow c xs (col-1)
   | [] -> []
-
-
-
-  
 
 
 //update this with functions for getting next states, getting cost and heuristic
@@ -106,12 +104,13 @@ with
     | ((None), (None), (None), (Some p4)) -> [b.Update c p4]
     | ((None), (None), (None), (None)) -> []
     
-//checks if line can move up and returns
+//checks if line can move in a particular direction
+//put a check to see if already at goal, not sure if needed
   member b.CanMoveUp (c:char) : Pos option = 
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row-1>=0) && b.board.[row-1].[col] = '0' -> Some (row-1,col)
+                   (row, col) when (row-1>=0) && not l1.AtGoal && b.board.[row-1].[col] = '0' -> Some (row-1,col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -119,7 +118,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row+1<b.size) && b.board.[row+1].[col] = '0' -> Some (row+1, col)
+                   (row, col) when (row+1<b.size) && not l1.AtGoal && b.board.[row+1].[col] = '0' -> Some (row+1, col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -127,7 +126,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col+1<b.size) && b.board.[row].[col+1] = '0' -> Some (row, col+1)
+                   (row, col) when (col+1<b.size) && not l1.AtGoal && b.board.[row].[col+1] = '0' -> Some (row, col+1)
                    |(_, _) ->  None
       | _ -> failwith "line does not exist"
 
@@ -135,7 +134,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col-1>=0) && b.board.[row].[col-1] = '0' -> Some (row, col-1)
+                   (row, col) when (col-1>=0) && not l1.AtGoal && b.board.[row].[col-1] = '0' -> Some (row, col-1)
                    |(_, _)-> None
       | _ -> failwith "line does not exist"
     
@@ -199,6 +198,7 @@ and checkValidInputSize (f:FileInput): bool =
   | _ -> false 
   
 
+//constructs the initial board if valid
 let constructInitialBoard (f:FileInput): BoardState =
   match f with
   (len, _) when checkValidBoard f -> {size = len; lines = convertToMap f; board = convertToCharListList f}
@@ -208,17 +208,6 @@ let constructInitialBoard (f:FileInput): BoardState =
 let testInput = (3, "0a000b0ab")
 let initialBoard = constructInitialBoard testInput
 initialBoard.GetNextStates
-initialBoard.GetNextStatesOfLine 'b'
-initialBoard.CanMoveLeft 'b'
 initialBoard.GetCost
 initialBoard.GetHeuristic
 initialBoard.AtGoal
-
-Map.toList initialBoard.lines
-
-// //manually move
-// let b = initialBoard.Update 'a' (1,1)
-// let b1 = b.Update 'a' (2,1)
-// let b2 = b1.Update 'b' (1,2)
-// let b3 = b2.Update 'b' (2,2)
-// b3.AtGoal
