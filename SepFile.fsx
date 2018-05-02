@@ -1,4 +1,3 @@
-
 //Completed:
 // Take the input type of int string and convert to n by n char list
 // Take the input type of int string and convert to a map where the key
@@ -25,17 +24,13 @@ type boardState = {size: int; lines: Map<char,line>; board: char list list}
 //What the function that reads in puzzle from a file should return
 type fileInput = int * string
 
-let checkValidInputSize (f:fileInput): bool = 
-  match f with
-  (len, str) when sqrt (double str.Length) = (double len) -> true
-  | _ -> false 
+
 
 //takes in the file representation and converts to n by n char list
 //invalid check should be move elsewhere
-let rec convertToCharChar (f: fileInput) : char list list =
+let rec convertToCharListList (f: fileInput) : char list list =
   match f with
-  (len, str) when (checkValidInputSize f) -> split len (Array.toList (str.ToCharArray())) 
-  | _ -> failwith "Invalid Board"
+  (len, str) -> split len (Array.toList (str.ToCharArray())) 
 and split (n:int)(c: char list): char list list =
   match c with
   [] -> []
@@ -56,8 +51,7 @@ and removeN (n: int)(c: char list): char list =
 //should move the invalid check seperately
 let rec convertToMap (f: fileInput) : Map<char, line> =
   match f with
-    (len, str) when (checkValidInputSize f) -> addToMap len (Array.toList (str.ToCharArray()))
-    | _ -> failwith "Invalid Board"
+    (len, str)  -> addToMap len (Array.toList (str.ToCharArray()))
 and addToMap (n: int)(c: char list): Map<char, line> =
   let mutable m = Map.empty<char,line>
   for i = 0 to c.Length-1 do
@@ -69,12 +63,29 @@ and addToMap (n: int)(c: char list): Map<char, line> =
   m
 
 
+//checks that a board is valid:
+// - sqrt string.size = length
+// - there are exactly 2 of each none '0' char
+let rec checkValidBoard(f: fileInput): bool =
+  match f with
+  (_, str) -> checkValidInputSize f && checkTwoOfEach (List.sort (Array.toList (str.ToCharArray())))
+and checkTwoOfEach(c: char list) : bool = 
+  match c with
+  (x :: y :: xs) when x <>'0' -> x = y && checkTwoOfEach xs
+  | (x :: y :: xs) when x ='0' -> checkTwoOfEach (y::xs)
+  | ([_]) -> false
+  | _ -> true
+and checkValidInputSize (f:fileInput): bool = 
+  match f with
+  (len, str) when sqrt (double str.Length) = (double len) -> true
+  | _ -> false 
+  
+
+let constructInitialBoard (f:fileInput): boardState =
+  match f with
+  (len, _) when checkValidBoard f -> {size = len; lines = convertToMap f; board = convertToCharListList f}
+  | _  -> failwith "invalidBoard"
 
 //test board
-let testInput = (3, "00ab0ab00")
-convertToCharChar testInput
-convertToMap testInput
-
-let boardState = {size = 3; lines = convertToMap testInput; board = convertToCharChar testInput }
-boardState.board
-boardState.lines
+let testInput = (4, "98980660zab0ab0z")
+let initialBoard = constructInitialBoard testInput
