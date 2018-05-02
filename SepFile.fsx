@@ -55,17 +55,30 @@ and inRow (c:char)(row: char list)(col:int) =
 
 
 //update this with functions for getting next states, getting cost and heuristic
-//[<CustomComparison; StructuralEquality>]
+[<CustomComparison; StructuralEquality>]
 type BoardState = {size: int; lines: Map<char,Line>; board: char list list}
 with
+  
+  greedy best
+  interface IComparable<BoardState> with
+    member this.CompareTo other =
+      compare  this.GetHeuristic other.GetHeuristic
+  interface IComparable with
+    member this.CompareTo(obj: obj) =
+      match obj with
+      | :? BoardState -> compare (unbox<BoardState> obj).GetHeuristic this.GetHeuristic
+      | _ -> invalidArg "obj" "Must be of type BoardState"
+
+   //A star
   // interface IComparable<BoardState> with
   //   member this.CompareTo other =
-  //     compare this.GetHeuristic other.GetHeuristic
+  //     compare  (this.GetHeuristic + this.GetCost) (other.GetHeuristic + other.GetCost)
   // interface IComparable with
   //   member this.CompareTo(obj: obj) =
   //     match obj with
-  //     | :? BoardState -> compare this.GetHeuristic (unbox<BoardState> obj).GetHeuristic
-  //     | _ -> invalidArg "obj" "Must be of type Point"
+  //     | :? BoardState -> compare ((unbox<BoardState> obj).GetHeuristic + (unbox<BoardState> obj).GetCost) (this.GetHeuristic + this.GetCost)
+  //     | _ -> invalidArg "obj" "Must be of type BoardState"
+ 
  
 
   //compares boards for GreedyBest
@@ -231,27 +244,104 @@ let constructInitialBoard (f:FileInput): BoardState =
   (len, _) when checkValidBoard f -> {size = len; lines = convertToMap f; board = convertToCharListList f}
   | _  -> failwith "invalidBoard"
 
+let private (|Greater|_|) descendent compareResult =
+    match compareResult with
+    | n when n < 0 && descendent  -> None
+    | n when n < 0 && not descendent  -> Some()
+    | 0 -> None
+    | n when n > 0 && descendent -> Some()
+    | n when n > 0 && not descendent -> None
+    | _ -> failwith "Impossible case for IComparable result"
+
+let private isGreater x y descendent =
+    match compare x y with
+    | Greater descendent _ -> true
+    | _ -> false
+
+let private isLower x y descendent = not (isGreater x y descendent)
+
+type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool) =
+    let heap : System.Collections.Generic.List<'T> = System.Collections.Generic.List<'T>(values)
+    
+    let mutable size = heap.Count
+
+
+    let parent i = (i - 1) / 2
+    let leftChild i = 2 * i + 1
+    let rightChild i = 2 * i + 2
+
+    let swap i maxIndex =
+        let temp = heap.[i]
+        heap.[i] <- heap.[maxIndex]
+        heap.[maxIndex] <- temp
+
+    let siftUp i =
+        let mutable indx = i
+        while indx > 0 && isLower heap.[parent indx] heap.[indx] isDescending do
+            swap (parent indx) indx
+            indx <- parent indx
+
+    let rec siftDown i =
+        let l = leftChild i
+        let r = rightChild i
+        // maybe there is a cleaner way to express those
+        let maxIndexLeft = if l < size && isGreater heap.[l] heap.[i] isDescending then l else i
+        let maxIndex = if r < size && isGreater heap.[r] heap.[maxIndexLeft] isDescending then r else maxIndexLeft
+        if i <> maxIndex then
+            swap i maxIndex
+            siftUp maxIndex
+        else ()
+    
+    let build (unsortedValues: seq<'T>) =
+        for i = size / 2 downto 0 do
+            siftDown i
+    
+    do build heap
+
+    new (values) = PriorityQueue<'T>(values, true)
+
+    member this.IsEmpty = size = 0
+
+    member this.getSize = size
+
+    member this.Dequeue() =
+        if this.IsEmpty then raise (new Exception("No more elements to dequeue"))
+        let result = heap.[0]
+        heap.[0] <- heap.[size - 1]
+        // we limit the boundary but the last element stays in memory
+        // we could use heap.Remove but it's O(n) operation so too slow
+        size <- size - 1
+        siftDown 0
+        result
+
+    member this.Enqueue(p: 'T) =
+        if heap.Count = size then
+            heap.Add(p)
+        else
+            heap.[size] <- p
+        size <- size + 1
+        siftUp (size - 1)
+
 //test board
-let testInput = (4, "00a000b00a0000b0")
+//let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
+let testInput = (5, "a0c0b000000000000c00ab000")
+//let testInput = (3, "a00b000ba")
 let initialBoard = constructInitialBoard testInput
+initialBoard.Print
 
-let queue = new PriorityQueue<BoardState>([initialBoard])
+let mutable greedyQueue = new PriorityQueue<BoardState>([|initialBoard|])
 
+let mutable tempBoard = initialBoard
 
-let temp = queue.Dequeue
-match temp with (a,b) 
+let mutable beenTo = Set.empty<BoardState>
 
-while (not tempBoard. && queue.Size>0) do
-  
-
-let mutable frontier = [initialBoard]
-let mutable tempBoard = List.head frontier
-
-while (not tempBoard.AtGoal && frontier.Length>0) do
-  frontier <- List.tail frontier
-  frontier <- List.append frontier tempBoard.GetNextStates
-  tempBoard <- List.head frontier
-
-if (not tempBoard.AtGoal) then printfn "%s" "Unsolvable"
-else tempBoard.Print
+while not tempBoard.AtGoal && greedyQueue.getSize <> 0  do
+  tempBoard <- greedyQueue.Dequeue() 
+  beenTo <- beenTo.Add tempBoard
+  printfn "%d" tempBoard.GetHeuristic
+  for i in tempBoard.GetNextStates do
+    if not (beenTo.Contains i) then 
+      greedyQueue.Enqueue i
+     // beenTo <- beenTo.Add i
 tempBoard.Print
+  
