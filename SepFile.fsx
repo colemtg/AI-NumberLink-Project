@@ -14,6 +14,9 @@
 
 //TODO: integrate file reading and randomly generated boards
 //TODO: do A* and greedy best
+//module PriorityQueue
+open System
+open Microsoft.FSharp.Core
 
 type Pos = int * int
 
@@ -52,9 +55,33 @@ and inRow (c:char)(row: char list)(col:int) =
 
 
 //update this with functions for getting next states, getting cost and heuristic
+//[<CustomComparison; StructuralEquality>]
 type BoardState = {size: int; lines: Map<char,Line>; board: char list list}
 with
-  //g(s) = sum of length of all lines in state s
+  // interface IComparable<BoardState> with
+  //   member this.CompareTo other =
+  //     compare this.GetHeuristic other.GetHeuristic
+  // interface IComparable with
+  //   member this.CompareTo(obj: obj) =
+  //     match obj with
+  //     | :? BoardState -> compare this.GetHeuristic (unbox<BoardState> obj).GetHeuristic
+  //     | _ -> invalidArg "obj" "Must be of type Point"
+ 
+
+  //compares boards for GreedyBest
+  member b.Print =
+    for rows in b.board do
+      printfn "%A" rows
+
+  member b.CompareGreedyBest (otherBoard: BoardState): int =
+    if b.GetHeuristic>otherBoard.GetHeuristic then 1
+    else if b.GetHeuristic<otherBoard.GetHeuristic then -1
+    else 0
+
+  member b.CompareAStar (otherBoard: BoardState): int =
+    if b.GetCost+b.GetHeuristic>otherBoard.GetCost+otherBoard.GetHeuristic then 1
+    else if b.GetCost+b.GetHeuristic<otherBoard.GetCost+otherBoard.GetHeuristic then -1
+    else 0
   member b.GetCost =
     Map.fold (fun state _ value -> state + value.length) 0 b.lines
 
@@ -110,7 +137,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row-1>=0) && not l1.AtGoal && b.board.[row-1].[col] = '0' -> Some (row-1,col)
+                   (row, col) when (row-1>=0) && not l1.AtGoal && (b.board.[row-1].[col] = '0' || l1.goalPos = (row-1,col))-> Some (row-1,col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -118,7 +145,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row+1<b.size) && not l1.AtGoal && b.board.[row+1].[col] = '0' -> Some (row+1, col)
+                   (row, col) when (row+1<b.size) && not l1.AtGoal && (b.board.[row+1].[col] = '0' || l1.goalPos = (row+1,col)) -> Some (row+1, col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -126,7 +153,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col+1<b.size) && not l1.AtGoal && b.board.[row].[col+1] = '0' -> Some (row, col+1)
+                   (row, col) when (col+1<b.size) && not l1.AtGoal && (b.board.[row].[col+1] = '0' || l1.goalPos = (row,col+1))-> Some (row, col+1)
                    |(_, _) ->  None
       | _ -> failwith "line does not exist"
 
@@ -134,7 +161,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col-1>=0) && not l1.AtGoal && b.board.[row].[col-1] = '0' -> Some (row, col-1)
+                   (row, col) when (col-1>=0) && not l1.AtGoal && (b.board.[row].[col-1] = '0' || l1.goalPos = (row,col-1))-> Some (row, col-1)
                    |(_, _)-> None
       | _ -> failwith "line does not exist"
     
@@ -205,9 +232,26 @@ let constructInitialBoard (f:FileInput): BoardState =
   | _  -> failwith "invalidBoard"
 
 //test board
-let testInput = (3, "0a000b0ab")
+let testInput = (4, "00a000b00a0000b0")
 let initialBoard = constructInitialBoard testInput
-initialBoard.GetNextStates
-initialBoard.GetCost
-initialBoard.GetHeuristic
-initialBoard.AtGoal
+
+let queue = new PriorityQueue<BoardState>([initialBoard])
+
+
+let temp = queue.Dequeue
+match temp with (a,b) 
+
+while (not tempBoard. && queue.Size>0) do
+  
+
+let mutable frontier = [initialBoard]
+let mutable tempBoard = List.head frontier
+
+while (not tempBoard.AtGoal && frontier.Length>0) do
+  frontier <- List.tail frontier
+  frontier <- List.append frontier tempBoard.GetNextStates
+  tempBoard <- List.head frontier
+
+if (not tempBoard.AtGoal) then printfn "%s" "Unsolvable"
+else tempBoard.Print
+tempBoard.Print
