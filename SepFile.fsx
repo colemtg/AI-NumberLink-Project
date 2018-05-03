@@ -14,7 +14,7 @@
 
 //TODO: integrate file reading and randomly generated boards
 //TODO: do A* and greedy best
-//module PriorityQueue
+
 open System
 open Microsoft.FSharp.Core
 
@@ -34,6 +34,9 @@ with
 
   //checks if AtGoal
   member l.AtGoal = l.endPos = l.goalPos
+
+  member l.Hash = match l.endPos with
+                  (r,c) -> string r + string c + string l.name + string l.length
 
 
 //sets the Pos in the board to the char
@@ -59,7 +62,7 @@ and inRow (c:char)(row: char list)(col:int) =
 type BoardState = {size: int; lines: Map<char,Line>; board: char list list}
 with
   
-  greedy best
+  //greedy best
   interface IComparable<BoardState> with
     member this.CompareTo other =
       compare  this.GetHeuristic other.GetHeuristic
@@ -77,15 +80,15 @@ with
   //   member this.CompareTo(obj: obj) =
   //     match obj with
   //     | :? BoardState -> compare ((unbox<BoardState> obj).GetHeuristic + (unbox<BoardState> obj).GetCost) (this.GetHeuristic + this.GetCost)
-  //     | _ -> invalidArg "obj" "Must be of type BoardState"
- 
- 
-
-  //compares boards for GreedyBest
+  //     | _ -> invalidArg "obj" "Must be of type BoardState"    
   member b.Print =
     for rows in b.board do
       printfn "%A" rows
 
+  member b.Hash =
+    Map.fold (fun state _ (value:Line) -> state + value.Hash) "" b.lines
+
+  //compares boards for GreedyBest
   member b.CompareGreedyBest (otherBoard: BoardState): int =
     if b.GetHeuristic>otherBoard.GetHeuristic then 1
     else if b.GetHeuristic<otherBoard.GetHeuristic then -1
@@ -150,7 +153,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row-1>=0) && not l1.AtGoal && (b.board.[row-1].[col] = '0' || l1.goalPos = (row-1,col))-> Some (row-1,col)
+                   (row, col) when (row-1>=0) && (not l1.AtGoal) && (b.board.[row-1].[col] = '0' || l1.goalPos = (row-1,col)) -> Some (row-1,col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -158,7 +161,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row+1<b.size) && not l1.AtGoal && (b.board.[row+1].[col] = '0' || l1.goalPos = (row+1,col)) -> Some (row+1, col)
+                   (row, col) when (row+1<b.size) && (not l1.AtGoal) && (b.board.[row+1].[col] = '0' || l1.goalPos = (row+1,col)) -> Some (row+1, col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -166,7 +169,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col+1<b.size) && not l1.AtGoal && (b.board.[row].[col+1] = '0' || l1.goalPos = (row,col+1))-> Some (row, col+1)
+                   (row, col) when (col+1<b.size) && (not l1.AtGoal) && (b.board.[row].[col+1] = '0' || l1.goalPos = (row,col+1))-> Some (row, col+1)
                    |(_, _) ->  None
       | _ -> failwith "line does not exist"
 
@@ -174,7 +177,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col-1>=0) && not l1.AtGoal && (b.board.[row].[col-1] = '0' || l1.goalPos = (row,col-1))-> Some (row, col-1)
+                   (row, col) when (col-1>=0) && (not l1.AtGoal) && (b.board.[row].[col-1] = '0' || l1.goalPos = (row,col-1))-> Some (row, col-1)
                    |(_, _)-> None
       | _ -> failwith "line does not exist"
     
@@ -244,6 +247,8 @@ let constructInitialBoard (f:FileInput): BoardState =
   (len, _) when checkValidBoard f -> {size = len; lines = convertToMap f; board = convertToCharListList f}
   | _  -> failwith "invalidBoard"
 
+
+//Priority Queue from: https://gist.github.com/tjaskula/18a51f84ef06b4819b0952bb7e691828
 let private (|Greater|_|) descendent compareResult =
     match compareResult with
     | n when n < 0 && descendent  -> None
@@ -324,24 +329,34 @@ type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool)
 
 //test board
 //let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
-let testInput = (5, "a0c0b000000000000c00ab000")
+//let testInput = (5,"000RG00BG0R0000PB0YP0000Y")
+//let testInput = (9, "BP00000000000000G0000R00000000000000000000000R000000000000000000PYG00B0000000Y00")
+//let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
+//let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
 //let testInput = (3, "a00b000ba")
+//let testInput = (5,"Y00000000000G00BGR0YR000B")
+//let testInput = (5,"000RGR000000Y00000B0GBY00")
+let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
 let initialBoard = constructInitialBoard testInput
+initialBoard.lines
 initialBoard.Print
 
-let mutable greedyQueue = new PriorityQueue<BoardState>([|initialBoard|])
+let greedyQueue = new PriorityQueue<BoardState>([|initialBoard|])
 
 let mutable tempBoard = initialBoard
 
-let mutable beenTo = Set.empty<BoardState>
-
-while not tempBoard.AtGoal && greedyQueue.getSize <> 0  do
-  tempBoard <- greedyQueue.Dequeue() 
-  beenTo <- beenTo.Add tempBoard
-  printfn "%d" tempBoard.GetHeuristic
-  for i in tempBoard.GetNextStates do
-    if not (beenTo.Contains i) then 
-      greedyQueue.Enqueue i
-     // beenTo <- beenTo.Add i
-tempBoard.Print
+let mutable beenTo = Set.empty<string>
+beenTo<- beenTo.Add initialBoard.Hash
+while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
   
+  //beenTo <- beenTo.Add tempBoard.Hash
+  //printfn "%d" tempBoard.GetHeuristic
+  printfn "%d" greedyQueue.getSize
+  for i in tempBoard.GetNextStates do
+    if not (beenTo.Contains i.Hash) then 
+      greedyQueue.Enqueue i
+      beenTo <- beenTo.Add i.Hash
+  tempBoard <- greedyQueue.Dequeue() 
+
+tempBoard.Print
+beenTo.Count
