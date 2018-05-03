@@ -18,6 +18,11 @@
 open System
 open Microsoft.FSharp.Core
 
+//change this to change how comparable is implemented
+let mutable algorithm = ""
+let aStar = "astar"
+let greedyBest = "greedy"
+
 type Pos = int * int
 
 //represents the different lines
@@ -35,8 +40,9 @@ with
   //checks if AtGoal
   member l.AtGoal = l.endPos = l.goalPos
 
-  member l.Hash = match l.endPos with
-                  (r,c) -> string r + string c + string l.name + string l.length
+  member l.Hash = 
+   match l.endPos with
+   (r,c) -> string r + string c + string l.name + string l.length + string l.GetDistance
 
 
 //sets the Pos in the board to the char
@@ -61,26 +67,20 @@ and inRow (c:char)(row: char list)(col:int) =
 [<CustomComparison; StructuralEquality>]
 type BoardState = {size: int; lines: Map<char,Line>; board: char list list}
 with
-  
-  //greedy best
   interface IComparable<BoardState> with
     member this.CompareTo other =
-      compare  this.GetHeuristic other.GetHeuristic
+      if (algorithm = greedyBest) then
+        compare  other.GetGreedyBest this.GetGreedyBest
+      else if (algorithm = aStar) then
+        compare other.GetAStar this.GetAStar
+      else 0 //just treat as the same
   interface IComparable with
     member this.CompareTo(obj: obj) =
       match obj with
-      | :? BoardState -> compare (unbox<BoardState> obj).GetHeuristic this.GetHeuristic
+      | :? BoardState when (algorithm = greedyBest) -> compare (unbox<BoardState> obj).GetGreedyBest this.GetGreedyBest
+      | :? BoardState when (algorithm = aStar) -> compare (unbox<BoardState> obj).GetAStar this.GetAStar
       | _ -> invalidArg "obj" "Must be of type BoardState"
-
-   //A star
-  // interface IComparable<BoardState> with
-  //   member this.CompareTo other =
-  //     compare  (this.GetHeuristic + this.GetCost) (other.GetHeuristic + other.GetCost)
-  // interface IComparable with
-  //   member this.CompareTo(obj: obj) =
-  //     match obj with
-  //     | :? BoardState -> compare ((unbox<BoardState> obj).GetHeuristic + (unbox<BoardState> obj).GetCost) (this.GetHeuristic + this.GetCost)
-  //     | _ -> invalidArg "obj" "Must be of type BoardState"    
+    
   member b.Print =
     for rows in b.board do
       printfn "%A" rows
@@ -88,16 +88,9 @@ with
   member b.Hash =
     Map.fold (fun state _ (value:Line) -> state + value.Hash) "" b.lines
 
-  //compares boards for GreedyBest
-  member b.CompareGreedyBest (otherBoard: BoardState): int =
-    if b.GetHeuristic>otherBoard.GetHeuristic then 1
-    else if b.GetHeuristic<otherBoard.GetHeuristic then -1
-    else 0
+  member b.GetAStar = b.GetCost + b.GetHeuristic
 
-  member b.CompareAStar (otherBoard: BoardState): int =
-    if b.GetCost+b.GetHeuristic>otherBoard.GetCost+otherBoard.GetHeuristic then 1
-    else if b.GetCost+b.GetHeuristic<otherBoard.GetCost+otherBoard.GetHeuristic then -1
-    else 0
+  member b.GetGreedyBest = b.GetHeuristic
   member b.GetCost =
     Map.fold (fun state _ value -> state + value.length) 0 b.lines
 
@@ -121,8 +114,14 @@ with
   //gets all of the possible next states
   member b.GetNextStates : BoardState list =
     let mutable boards = [b]
-    for (c,_) in Map.toList b.lines do
-      boards <- (List.append boards (b.GetNextStatesOfLine c))
+    let mutable stop = false
+    for (k,v) in Map.toList b.lines do
+      if not stop && not v.AtGoal then
+        match b.GetNextStatesOfLine k with
+        [] -> boards<- [b]
+              stop <- true
+        | next -> boards <- List.append boards next
+      //boards <- (List.append boards (b.GetNextStatesOfLine c))
     List.tail boards
 
 
@@ -327,36 +326,66 @@ type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool)
         size <- size + 1
         siftUp (size - 1)
 
+
+
+let GreedyBestFirst(fileState: FileInput): BoardState option =
+  algorithm <- greedyBest
+  let mutable tempBoard = constructInitialBoard fileState
+  let greedyQueue = new PriorityQueue<BoardState>([|tempBoard|])
+  let mutable beenTo = Set.empty<string>
+  beenTo<- beenTo.Add tempBoard.Hash
+
+  while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
+    for i in tempBoard.GetNextStates do
+      if not (beenTo.Contains i.Hash) then 
+        greedyQueue.Enqueue i
+        beenTo <- beenTo.Add i.Hash
+    tempBoard <- greedyQueue.Dequeue()
+
+  if tempBoard.AtGoal then Some tempBoard
+  else None 
+
+
+let AStar(fileState: FileInput): BoardState option =
+  algorithm <- aStar
+  let mutable tempBoard = constructInitialBoard fileState
+  let greedyQueue = new PriorityQueue<BoardState>([|tempBoard|])
+  let mutable beenTo = Set.empty<string>
+  beenTo<- beenTo.Add tempBoard.Hash
+
+  while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
+    for i in tempBoard.GetNextStates do
+      if not (beenTo.Contains i.Hash) then 
+        greedyQueue.Enqueue i
+        beenTo <- beenTo.Add i.Hash
+    tempBoard <- greedyQueue.Dequeue()
+
+  if tempBoard.AtGoal then Some tempBoard
+  else None 
+
+
 //test board
 //let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
 //let testInput = (5,"000RG00BG0R0000PB0YP0000Y")
-//let testInput = (9, "BP00000000000000G0000R00000000000000000000000R000000000000000000PYG00B0000000Y00")
 //let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
 //let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
 //let testInput = (3, "a00b000ba")
 //let testInput = (5,"Y00000000000G00BGR0YR000B")
 //let testInput = (5,"000RGR000000Y00000B0GBY00")
 let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
-let initialBoard = constructInitialBoard testInput
-initialBoard.lines
-initialBoard.Print
+//let testInput = (8, "0n00000n0r0z0cq0kq0v00000000000000zr00v0000000000000000000c0k000")
 
-let greedyQueue = new PriorityQueue<BoardState>([|initialBoard|])
 
-let mutable tempBoard = initialBoard
+//Run Greedy
+let solutionGreedy = GreedyBestFirst testInput
+match solutionGreedy with
+  (Some sol) -> sol.Print
+  |(None) -> printfn "no solution"
 
-let mutable beenTo = Set.empty<string>
-beenTo<- beenTo.Add initialBoard.Hash
-while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
-  
-  //beenTo <- beenTo.Add tempBoard.Hash
-  //printfn "%d" tempBoard.GetHeuristic
-  printfn "%d" greedyQueue.getSize
-  for i in tempBoard.GetNextStates do
-    if not (beenTo.Contains i.Hash) then 
-      greedyQueue.Enqueue i
-      beenTo <- beenTo.Add i.Hash
-  tempBoard <- greedyQueue.Dequeue() 
+//run AStar
+let solutionAStar = AStar testInput
+match solutionAStar with
+  (Some sol) -> sol.Print
+  |(None) -> printfn "no solution"
 
-tempBoard.Print
-beenTo.Count
+
