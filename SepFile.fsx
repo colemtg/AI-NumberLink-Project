@@ -18,9 +18,11 @@
 open System
 open Microsoft.FSharp.Core
 
+
 //change this to change how comparable is implemented
 let mutable algorithm = ""
 let aStar = "astar"
+let idaStar = "idastar"
 let greedyBest = "greedy"
 
 type Pos = int * int
@@ -73,12 +75,15 @@ with
         compare  other.GetGreedyBest this.GetGreedyBest
       else if (algorithm = aStar) then
         compare other.GetAStar this.GetAStar
+      else if (algorithm = idaStar) then
+        compare other.GetIDAStar this.GetIDAStar
       else 0 //just treat as the same
   interface IComparable with
     member this.CompareTo(obj: obj) =
       match obj with
       | :? BoardState when (algorithm = greedyBest) -> compare (unbox<BoardState> obj).GetGreedyBest this.GetGreedyBest
       | :? BoardState when (algorithm = aStar) -> compare (unbox<BoardState> obj).GetAStar this.GetAStar
+      | :? BoardState when (algorithm = idaStar) -> compare (unbox<BoardState> obj).GetIDAStar this.GetIDAStar
       | _ -> invalidArg "obj" "Must be of type BoardState"
     
   member b.Print =
@@ -89,6 +94,7 @@ with
     Map.fold (fun state _ (value:Line) -> state + value.Hash) "" b.lines
 
   member b.GetAStar = b.GetCost + b.GetHeuristic
+  member b.GetIDAStar = b.GetCost + b.GetHeuristic
 
   member b.GetGreedyBest = b.GetHeuristic
   member b.GetCost =
@@ -217,8 +223,8 @@ and addToMap (n: int)(c: char list): Map<char, Line> =
     if c.[i] <> '0' && m.ContainsKey (c.[i]) then
      let tempLine = (Map.find c.[i] m)
      m <- m.Remove(c.[i])
-     m <- m.Add(c.[i], {name = tempLine.name; endPos = tempLine.endPos; goalPos = (i/n, i%n); length = 1})
-    else if c.[i] <> '0' then m <- m.Add(c.[i], {name = c.[i]; endPos = (i/n, i%n); goalPos = (-1,-1); length = 1})
+     m <- m.Add(c.[i], {name = tempLine.name; endPos = tempLine.endPos; goalPos = (i/n, i%n); length = 0})
+    else if c.[i] <> '0' then m <- m.Add(c.[i], {name = c.[i]; endPos = (i/n, i%n); goalPos = (-1,-1); length = 0})
   m
 
 
@@ -364,28 +370,64 @@ let AStar(fileState: FileInput): BoardState option =
   else None 
 
 
+let IDAStar(fileState: FileInput): BoardState option =
+  algorithm <- aStar
+ 
+  let mutable tempBoard = constructInitialBoard fileState
+  let mutable depth = 1
+  while(not tempBoard.AtGoal) do
+    tempBoard <- constructInitialBoard fileState
+    
+
+    let mutable previousTempBoard = constructInitialBoard fileState
+    let greedyQueue = new PriorityQueue<BoardState>([|tempBoard|])
+    let mutable beenTo = Set.empty<string>
+    beenTo<- beenTo.Add tempBoard.Hash
+
+
+
+    while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
+        if tempBoard.GetCost < depth then 
+          for i in tempBoard.GetNextStates do
+            if not (beenTo.Contains i.Hash) then 
+              greedyQueue.Enqueue i
+              beenTo <- beenTo.Add i.Hash
+          previousTempBoard <- tempBoard
+          tempBoard <- greedyQueue.Dequeue()
+
+    depth <- depth + 1
+  
+  if tempBoard.AtGoal then Some tempBoard
+  else None 
+
 //test board
 //let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
 //let testInput = (5,"000RG00BG0R0000PB0YP0000Y")
 //let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
 //let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
-//let testInput = (3, "a00b000ba")
+
+let testInput = (3, "a00b000ba")
 //let testInput = (5,"Y00000000000G00BGR0YR000B")
 //let testInput = (5,"000RGR000000Y00000B0GBY00")
-let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
+//let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
 //let testInput = (8, "0n00000n0r0z0cq0kq0v00000000000000zr00v0000000000000000000c0k000")
 
 
 //Run Greedy
-let solutionGreedy = GreedyBestFirst testInput
-match solutionGreedy with
-  (Some sol) -> sol.Print
-  |(None) -> printfn "no solution"
+// let solutionGreedy = GreedyBestFirst testInput
+// match solutionGreedy with
+//   (Some sol) -> sol.Print
+//   |(None) -> printfn "no solution"
 
 //run AStar
-let solutionAStar = AStar testInput
-match solutionAStar with
+// let solutionAStar = AStar testInput
+// match solutionAStar with
+//   (Some sol) -> sol.Print
+//   |(None) -> printfn "no solution"
+
+let solutionIDAStar = IDAStar testInput
+match solutionIDAStar with
   (Some sol) -> sol.Print
-  |(None) -> printfn "no solution"
+  |(None) -> printfn "no solutionnnnnnn"
 
 
