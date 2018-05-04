@@ -5,10 +5,12 @@ open System
 open Microsoft.FSharp.Core
 open System.IO
 
+//auxiliary function used in reverse
 let rec append l m =
   match l with
     [] -> m 
   | h :: t -> h :: (append t m) 
+//auxiliary function used in reverse
 let move l1 l2 =
     let rec reverser l1m = function
       | [] -> append l1m l2
@@ -16,16 +18,20 @@ let move l1 l2 =
     reverser [] l1
 
 move ([1;2;3]:int list) ([7;8]:int list) 
+//reverse items in a list function
 let reverse l = if l <> [] then move l [] else failwith "empty list"
+//Retrieve directory path
 let baseDirectory = __SOURCE_DIRECTORY__
 let baseDirectory' = Directory.GetParent(baseDirectory)
 let filePath = "AI-NumberLink-Project/testCases.txt"
 let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
+//Converted each line in text as elements 
 let data =  File.ReadAllLines(fullPath)
 
 let mutable counter = 1
 let mutable sizearr = []
 let mutable boardarr = []
+//Depending on line number, add to size array or board array
 for value in data do
   if counter%3 = 1 then 
     if value.Length > 0 then
@@ -37,7 +43,7 @@ for value in data do
 
 sizearr <- reverse sizearr
 boardarr <- reverse boardarr
-
+//convert corresponding elements in each array to tuple so can be converted to proper data structure 
 let mutable boardstuplearr = []
 for i in 0 ..249 do
   boardstuplearr <- (sizearr.[i], boardarr.[i]) :: boardstuplearr
