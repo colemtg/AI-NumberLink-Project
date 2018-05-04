@@ -13,7 +13,7 @@
 // get next states for a board
 
 //TODO: integrate file reading and randomly generated boards
-//TODO: do A* and greedy best
+//TODO: improve A* and greedy best
 
 open System
 open Microsoft.FSharp.Core
@@ -365,16 +365,16 @@ let AStar(fileState: FileInput): BoardState option =
 
 
 //test board
-//let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
+let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
 //let testInput = (5,"000RG00BG0R0000PB0YP0000Y")
 //let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
 //let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
 //let testInput = (3, "a00b000ba")
 //let testInput = (5,"Y00000000000G00BGR0YR000B")
 //let testInput = (5,"000RGR000000Y00000B0GBY00")
-let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
+//let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
 //let testInput = (8, "0n00000n0r0z0cq0kq0v00000000000000zr00v0000000000000000000c0k000")
-
+//let testInput = (8,"0f0000000f00000r0000000v0r00p00000000000v000000y0000y00000000p00")
 
 //Run Greedy
 let solutionGreedy = GreedyBestFirst testInput
