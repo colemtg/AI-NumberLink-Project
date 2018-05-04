@@ -3,6 +3,47 @@
 
 open System
 open Microsoft.FSharp.Core
+open System.IO
+
+let rec append l m =
+  match l with
+    [] -> m 
+  | h :: t -> h :: (append t m) 
+let move l1 l2 =
+    let rec reverser l1m = function
+      | [] -> append l1m l2
+      | x::l1 -> reverser(x::l1m) l1
+    reverser [] l1
+
+move ([1;2;3]:int list) ([7;8]:int list) 
+let reverse l = if l <> [] then move l [] else failwith "empty list"
+let baseDirectory = __SOURCE_DIRECTORY__
+let baseDirectory' = Directory.GetParent(baseDirectory)
+let filePath = "AI-NumberLink-Project/testCases.txt"
+let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
+let data =  File.ReadAllLines(fullPath)
+
+let mutable counter = 1
+let mutable sizearr = []
+let mutable boardarr = []
+for value in data do
+  if counter%3 = 1 then 
+    if value.Length > 0 then
+      sizearr <- value :: sizearr
+  else if counter%3 = 2 then 
+    if value.Length > 0 then
+      boardarr <- value :: boardarr
+  counter <- counter + 1
+
+sizearr <- reverse sizearr
+boardarr <- reverse boardarr
+
+let mutable boardstuplearr = []
+for i in 0 ..249 do
+  boardstuplearr <- (sizearr.[i], boardarr.[i]) :: boardstuplearr
+
+boardstuplearr <- reverse boardstuplearr
+
 
 //change this to change how comparable is implemented
 let mutable algorithm = ""
@@ -414,5 +455,4 @@ let solutionIDAStar = IDAStar testInput
 match solutionIDAStar with
   (Some sol) -> sol.Print
   |(None) -> printfn "no solution"
-
 
