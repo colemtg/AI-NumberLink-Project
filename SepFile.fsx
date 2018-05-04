@@ -75,15 +75,12 @@ with
         compare  other.GetGreedyBest this.GetGreedyBest
       else if (algorithm = aStar) then
         compare other.GetAStar this.GetAStar
-      else if (algorithm = idaStar) then
-        compare other.GetIDAStar this.GetIDAStar
       else 0 //just treat as the same
   interface IComparable with
     member this.CompareTo(obj: obj) =
       match obj with
       | :? BoardState when (algorithm = greedyBest) -> compare (unbox<BoardState> obj).GetGreedyBest this.GetGreedyBest
       | :? BoardState when (algorithm = aStar) -> compare (unbox<BoardState> obj).GetAStar this.GetAStar
-      | :? BoardState when (algorithm = idaStar) -> compare (unbox<BoardState> obj).GetIDAStar this.GetIDAStar
       | _ -> invalidArg "obj" "Must be of type BoardState"
     
   member b.Print =
@@ -93,19 +90,21 @@ with
   member b.Hash =
     Map.fold (fun state _ (value:Line) -> state + value.Hash) "" b.lines
 
-  member b.GetAStar = b.GetCost + b.GetHeuristic
-  member b.GetIDAStar = b.GetCost + b.GetHeuristic
+  member b.GetAStar = b.GetCost + b.GetManhattanDistance
+  member b.GetIDAStar = b.GetCost + b.GetManhattanDistance
 
-  member b.GetGreedyBest = b.GetHeuristic
+  member b.GetGreedyBest = b.GetManhattanDistance
   member b.GetCost =
     Map.fold (fun state _ value -> state + value.length) 0 b.lines
 
   //h(s) = manhattan distance
-  member b.GetHeuristic = 
+  member b.GetManhattanDistance = 
     Map.fold (fun state _ (value:Line) -> state + value.GetDistance) 0 b.lines
   
   member b.AtGoal =
-    Map.fold(fun state _ (value:Line) -> state && value.AtGoal) true b.lines
+    //can't be the goal if not at least the manhattan distance
+    if (b.GetCost<b.GetManhattanDistance) then false
+    else Map.fold(fun state _ (value:Line) -> state && value.AtGoal) true b.lines
   
   //returns a board updated with the new pos of the end of the line
   member b.Update(c:char)(p: Pos): BoardState =
@@ -374,26 +373,23 @@ let IDAStar(fileState: FileInput): BoardState option =
   algorithm <- aStar
  
   let mutable tempBoard = constructInitialBoard fileState
-  let mutable depth = 1
+  //The minimum depth of the solution is the ManhattanDistance
+  let mutable depth = tempBoard.GetManhattanDistance
   while(not tempBoard.AtGoal) do
+    printfn "%d" depth
     tempBoard <- constructInitialBoard fileState
     
 
-    let mutable previousTempBoard = constructInitialBoard fileState
     let greedyQueue = new PriorityQueue<BoardState>([|tempBoard|])
     let mutable beenTo = Set.empty<string>
     beenTo<- beenTo.Add tempBoard.Hash
-
-
-
     while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
         if tempBoard.GetCost < depth then 
           for i in tempBoard.GetNextStates do
             if not (beenTo.Contains i.Hash) then 
               greedyQueue.Enqueue i
               beenTo <- beenTo.Add i.Hash
-          previousTempBoard <- tempBoard
-          tempBoard <- greedyQueue.Dequeue()
+        tempBoard <- greedyQueue.Dequeue()
 
     depth <- depth + 1
   
@@ -406,7 +402,7 @@ let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
 //let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
 //let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
 
-let testInput = (3, "a00b000ba")
+//let testInput = (3, "a00b000ba")
 //let testInput = (5,"Y00000000000G00BGR0YR000B")
 //let testInput = (5,"000RGR000000Y00000B0GBY00")
 //let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
