@@ -1,28 +1,12 @@
-//Completed:
-// Take the input type of int * string and convert to n by n char list
-// Take the input type of int * string and convert to a map where the key
-//   is the char and the value is Type line where line has a char name,
-//   end position of the line, goal position of the line, and length of line 
-// not sure if we need length, but will make calculating cost of state easier I think
-// wasn't sure if should be initially 0 or 1 to begin with but shouldn't matter 
-//   as long as its consistant
-// Board validation
-// Checking if a state is a goal state
-// g(s) calculation for board
-// h(s) calculation for board
-// get next states for a board
-
 //TODO: integrate file reading and randomly generated boards
-//TODO: improve A* and greedy best
+//TODO: analysis
 
 open System
 open Microsoft.FSharp.Core
 
-
 //change this to change how comparable is implemented
 let mutable algorithm = ""
 let aStar = "astar"
-let idaStar = "idastar"
 let greedyBest = "greedy"
 
 type Pos = int * int
@@ -102,7 +86,8 @@ with
     Map.fold (fun state _ (value:Line) -> state + value.GetDistance) 0 b.lines
   
   member b.AtGoal =
-    //can't be the goal if not at least the manhattan distance
+    //Part 2 improvement:
+    //can't be the goal if cost not at least the manhattan distance
     if (b.GetCost<b.GetManhattanDistance) then false
     else Map.fold(fun state _ (value:Line) -> state && value.AtGoal) true b.lines
   
@@ -119,6 +104,9 @@ with
   //gets all of the possible next states
   member b.GetNextStates : BoardState list =
     let mutable boards = [b]
+    //Part 2 improvement:
+    //if a line is not a goal,and has no next states (trapped) then this
+    // path is a dead end and no need to continue
     let mutable stop = false
     for (k,v) in Map.toList b.lines do
       if not stop && not v.AtGoal then
@@ -126,7 +114,6 @@ with
         [] -> boards<- [b]
               stop <- true
         | next -> boards <- List.append boards next
-      //boards <- (List.append boards (b.GetNextStatesOfLine c))
     List.tail boards
 
 
@@ -334,73 +321,74 @@ type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool)
 
 
 let GreedyBestFirst(fileState: FileInput): BoardState option =
-  algorithm <- greedyBest
+  algorithm <- greedyBest //this changes comparable to h(s)
   let mutable tempBoard = constructInitialBoard fileState
-  let greedyQueue = new PriorityQueue<BoardState>([|tempBoard|])
+  let queue = new PriorityQueue<BoardState>([|tempBoard|])
   let mutable beenTo = Set.empty<string>
   beenTo<- beenTo.Add tempBoard.Hash
 
-  while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
+  while ((not tempBoard.AtGoal) && (queue.getSize <> 0))  do
     for i in tempBoard.GetNextStates do
       if not (beenTo.Contains i.Hash) then 
-        greedyQueue.Enqueue i
+        queue.Enqueue i
         beenTo <- beenTo.Add i.Hash
-    tempBoard <- greedyQueue.Dequeue()
+    tempBoard <- queue.Dequeue()
 
   if tempBoard.AtGoal then Some tempBoard
   else None 
 
 
 let AStar(fileState: FileInput): BoardState option =
-  algorithm <- aStar
+  algorithm <- aStar //this changes comparable to h(s) + g(s)
   let mutable tempBoard = constructInitialBoard fileState
-  let greedyQueue = new PriorityQueue<BoardState>([|tempBoard|])
+  let queue = new PriorityQueue<BoardState>([|tempBoard|])
   let mutable beenTo = Set.empty<string>
   beenTo<- beenTo.Add tempBoard.Hash
 
-  while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
+  while ((not tempBoard.AtGoal) && (queue.getSize <> 0))  do
     for i in tempBoard.GetNextStates do
       if not (beenTo.Contains i.Hash) then 
-        greedyQueue.Enqueue i
+        queue.Enqueue i
         beenTo <- beenTo.Add i.Hash
-    tempBoard <- greedyQueue.Dequeue()
+    tempBoard <- queue.Dequeue()
 
   if tempBoard.AtGoal then Some tempBoard
   else None 
 
-
+//Part 2 improvement:
 let IDAStar(fileState: FileInput): BoardState option =
-  algorithm <- aStar
- 
+  algorithm <- aStar //same comparable as A*
   let mutable tempBoard = constructInitialBoard fileState
+  //Part 2 improvement:
   //The minimum depth of the solution is the ManhattanDistance
   let mutable depth = tempBoard.GetManhattanDistance
-  while(not tempBoard.AtGoal) do
+  while(not tempBoard.AtGoal && depth <= tempBoard.size * tempBoard.size) do
     printfn "%d" depth
     tempBoard <- constructInitialBoard fileState
     
-
-    let greedyQueue = new PriorityQueue<BoardState>([|tempBoard|])
+    let queue = new PriorityQueue<BoardState>([|tempBoard|])
     let mutable beenTo = Set.empty<string>
     beenTo<- beenTo.Add tempBoard.Hash
-    while ((not tempBoard.AtGoal) && (greedyQueue.getSize <> 0))  do
+    while ((not tempBoard.AtGoal) && (queue.getSize <> 0))  do
         if tempBoard.GetCost < depth then 
           for i in tempBoard.GetNextStates do
             if not (beenTo.Contains i.Hash) then 
-              greedyQueue.Enqueue i
+              queue.Enqueue i
               beenTo <- beenTo.Add i.Hash
-        tempBoard <- greedyQueue.Dequeue()
+        tempBoard <- queue.Dequeue()
 
     depth <- depth + 1
-  
+
   if tempBoard.AtGoal then Some tempBoard
   else None 
 
-//test board
-let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
+//test boards
+//let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
 //let testInput = (5,"000RG00BG0R0000PB0YP0000Y")
 //let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
 //let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
+
+let testInput = (3, "ABAC0C0B0")
 
 //let testInput = (3, "a00b000ba")
 //let testInput = (5,"Y00000000000G00BGR0YR000B")
@@ -421,9 +409,10 @@ let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
 //   (Some sol) -> sol.Print
 //   |(None) -> printfn "no solution"
 
+//IDAStar
 let solutionIDAStar = IDAStar testInput
 match solutionIDAStar with
   (Some sol) -> sol.Print
-  |(None) -> printfn "no solutionnnnnnn"
+  |(None) -> printfn "no solution"
 
 
