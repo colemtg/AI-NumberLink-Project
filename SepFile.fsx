@@ -5,60 +5,66 @@ open System
 open Microsoft.FSharp.Core
 open System.IO
 
+//What the function that reads in the puzzles from a file should return
+type FileInput = int * string
+
+//reads in 250 files from a puzzle
+let getPuzzles: FileInput list = 
 //auxiliary function used in reverse
-let rec append l m =
-  match l with
-    [] -> m 
-  | h :: t -> h :: (append t m) 
-//auxiliary function used in reverse
-let move l1 l2 =
-    let rec reverser l1m = function
-      | [] -> append l1m l2
-      | x::l1 -> reverser(x::l1m) l1
-    reverser [] l1
+  let rec append l m =
+    match l with
+      [] -> m 
+    | h :: t -> h :: (append t m) 
+  //auxiliary function used in reverse
+  let move l1 l2 =
+      let rec reverser l1m = function
+        | [] -> append l1m l2
+        | x::l1 -> reverser(x::l1m) l1
+      reverser [] l1
 
-move ([1;2;3]:int list) ([7;8]:int list) 
-//reverse items in a list function
-let reverse l = if l <> [] then move l [] else failwith "empty list"
-//Retrieve directory path
-let baseDirectory = __SOURCE_DIRECTORY__
-let baseDirectory' = Directory.GetParent(baseDirectory)
-let filePath = "AI-NumberLink-Project/testCases.txt"
-let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
-//Converted each line in text as elements 
-let data =  File.ReadAllLines(fullPath)
+  move ([1;2;3]:int list) ([7;8]:int list) 
+  //reverse items in a list function
+  let reverse l = if l <> [] then move l [] else failwith "empty list"
+  //Retrieve directory path
+  let baseDirectory = __SOURCE_DIRECTORY__
+  let baseDirectory' = Directory.GetParent(baseDirectory)
+  let filePath = "AI-NumberLink-Project/testCases.txt"
+  let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
+  //Converted each line in text as elements 
+  let data =  File.ReadAllLines(fullPath)
 
-let mutable counter = 1
-let mutable sizearr = []
-let mutable boardarr = []
-//Depending on line number, add to size array or board array
-for value in data do
-  if counter%3 = 1 then 
-    if value.Length > 0 then
-      sizearr <- value :: sizearr
-  else if counter%3 = 2 then 
-    if value.Length > 0 then
-      boardarr <- value :: boardarr
-  counter <- counter + 1
+  let mutable counter = 1
+  let mutable sizearr = []
+  let mutable boardarr = []
+  //Depending on line number, add to size array or board array
+  for value in data do
+    if counter%3 = 1 then 
+      if value.Length > 0 then
+        sizearr <- value :: sizearr
+    else if counter%3 = 2 then 
+      if value.Length > 0 then
+        boardarr <- value :: boardarr
+    counter <- counter + 1
 
-sizearr <- reverse sizearr
-boardarr <- reverse boardarr
-//convert corresponding elements in each array to tuple so can be converted to proper data structure 
-let mutable boardstuplearr = []
-for i in 0 ..249 do
-  boardstuplearr <- (sizearr.[i], boardarr.[i]) :: boardstuplearr
+  sizearr <- reverse sizearr
+  boardarr <- reverse boardarr
+  //convert corresponding elements in each array to tuple so can be converted to proper data structure 
+  let mutable boardstuplearr: FileInput list = []
+  for i in 0 ..249 do
+    boardstuplearr <- ( (int)sizearr.[i], boardarr.[i]) :: boardstuplearr
 
-boardstuplearr <- reverse boardstuplearr
+  boardstuplearr <- reverse boardstuplearr
+  boardstuplearr
 
 
 //change this to change how comparable is implemented
-let mutable algorithm = ""
+let mutable heuristic = ""
 let aStar = "astar"
 let greedyBest = "greedy"
 
 type Pos = int * int
 
-//represents the different lines
+//represents the a line in the puzzle
 type Line = {name: char; endPos: Pos; goalPos: Pos; length: int}
 with
   //updates the postion of the end of the line, adds one to length
@@ -66,16 +72,17 @@ with
   goalPos = l.goalPos; length = l.length+1}
 
   //manhatan distance of each line
-  member l.GetDistance = 
+  member l.GetManhattanDistance = 
     match (l.endPos, l.goalPos) with
     (x1,y1),(x2,y2) -> abs (x1-x2) + abs (y1-y2)
 
   //checks if AtGoal
   member l.AtGoal = l.endPos = l.goalPos
 
+  //uniqueness
   member l.Hash = 
    match l.endPos with
-   (r,c) -> string r + string c + string l.name + string l.length + string l.GetDistance
+   (r,c) -> string r + string c + string l.name + string l.length + string l.GetManhattanDistance
 
 
 //sets the Pos in the board to the char
@@ -102,35 +109,48 @@ type BoardState = {size: int; lines: Map<char,Line>; board: char list list}
 with
   interface IComparable<BoardState> with
     member this.CompareTo other =
-      if (algorithm = greedyBest) then
+      if (heuristic = greedyBest) then
         compare  other.GetGreedyBest this.GetGreedyBest
-      else if (algorithm = aStar) then
-        compare other.GetAStar this.GetAStar
+      else if (heuristic = aStar) then
+        //Part 2 improvement:
+        // if same heuristic tiebreaker is lower h(s)
+        if (other.GetAStar = this.GetAStar) then 
+          compare other.GetManhattanDistance this.GetManhattanDistance
+        else (compare other.GetAStar this.GetAStar)
       else 0 //just treat as the same
   interface IComparable with
     member this.CompareTo(obj: obj) =
       match obj with
-      | :? BoardState when (algorithm = greedyBest) -> compare (unbox<BoardState> obj).GetGreedyBest this.GetGreedyBest
-      | :? BoardState when (algorithm = aStar) -> compare (unbox<BoardState> obj).GetAStar this.GetAStar
+      | :? BoardState when (heuristic = greedyBest) -> compare (unbox<BoardState> obj).GetGreedyBest this.GetGreedyBest
+      //Part 2 improvement:
+        // if same heuristic tiebreaker is lower h(s)
+      | :? BoardState when (heuristic = aStar) ->
+        if (unbox<BoardState> obj).GetAStar = this.GetAStar then
+          compare (unbox<BoardState> obj).GetManhattanDistance this.GetManhattanDistance
+        else
+          compare (unbox<BoardState> obj).GetAStar  this.GetAStar 
       | _ -> invalidArg "obj" "Must be of type BoardState"
-    
+
+  //prints the 2d representation of the board  
   member b.Print =
     for rows in b.board do
       printfn "%A" rows
 
+  //uniqueness
   member b.Hash =
     Map.fold (fun state _ (value:Line) -> state + value.Hash) "" b.lines
 
+  //g(s) + h(s)
   member b.GetAStar = b.GetCost + b.GetManhattanDistance
-  member b.GetIDAStar = b.GetCost + b.GetManhattanDistance
-
+  
+  //h(s)
   member b.GetGreedyBest = b.GetManhattanDistance
   member b.GetCost =
     Map.fold (fun state _ value -> state + value.length) 0 b.lines
 
   //h(s) = manhattan distance
   member b.GetManhattanDistance = 
-    Map.fold (fun state _ (value:Line) -> state + value.GetDistance) 0 b.lines
+    Map.fold (fun state _ (value:Line) -> state + value.GetManhattanDistance) 0 b.lines
   
   member b.AtGoal =
     //Part 2 improvement:
@@ -138,7 +158,7 @@ with
     if (b.GetCost<b.GetManhattanDistance) then false
     else Map.fold(fun state _ (value:Line) -> state && value.AtGoal) true b.lines
   
-  //returns a board updated with the new pos of the end of the line
+  //returns a board updated with the new pos of the end of the inputted line
   member b.Update(c:char)(p: Pos): BoardState =
     let foundLine = Map.tryFind c b.lines in 
     let lines' =
@@ -150,23 +170,24 @@ with
 
   //gets all of the possible next states
   member b.GetNextStates : BoardState list =
-    let mutable boards = [b]
+    let mutable boards = []
     //Part 2 improvement:
-    //if a line is not a goal,and has no next states (trapped) then this
+    //if a line is not a goal, and has no next states (trapped) then this
     // path is a dead end and no need to continue
+    // Also no need to get next states if already at goal
     let mutable stop = false
     for (k,v) in Map.toList b.lines do
       if not stop && not v.AtGoal then
         match b.GetNextStatesOfLine k with
-        [] -> boards<- [b]
+        [] -> boards<- []
               stop <- true
         | next -> boards <- List.append boards next
-    List.tail boards
+    boards
 
 
  //gets next states of a paritcular line by checking if can move in a particualr direction
- //TODO: fix so less stupid (hw2a might have a better way)
   member b.GetNextStatesOfLine (c:char) : BoardState list =
+
     match (b.CanMoveDown c), (b.CanMoveLeft c), (b.CanMoveRight c), (b.CanMoveUp c) with
     ((Some p1), (Some p2), (Some p3), (Some p4)) -> b.Update c p1 :: b.Update c p2 :: b.Update c p3 :: [b.Update c p4]                                                                      
     | ((Some p1), (Some p2), (Some p3), (None)) -> b.Update c p1 :: b.Update c p2 :: [b.Update c p3]
@@ -186,12 +207,11 @@ with
     | ((None), (None), (None), (None)) -> []
     
 //checks if line can move in a particular direction
-//put a check to see if already at goal, not sure if needed
   member b.CanMoveUp (c:char) : Pos option = 
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row-1>=0) && (not l1.AtGoal) && (b.board.[row-1].[col] = '0' || l1.goalPos = (row-1,col)) -> Some (row-1,col)
+                   (row, col) when (row-1>=0) && (b.board.[row-1].[col] = '0' || l1.goalPos = (row-1,col)) -> Some (row-1,col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -199,7 +219,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (row+1<b.size) && (not l1.AtGoal) && (b.board.[row+1].[col] = '0' || l1.goalPos = (row+1,col)) -> Some (row+1, col)
+                   (row, col) when (row+1<b.size) && (b.board.[row+1].[col] = '0' || l1.goalPos = (row+1,col)) -> Some (row+1, col)
                    |(_, _) -> None
       | _ -> failwith "line does not exist"
 
@@ -207,7 +227,7 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col+1<b.size) && (not l1.AtGoal) && (b.board.[row].[col+1] = '0' || l1.goalPos = (row,col+1))-> Some (row, col+1)
+                   (row, col) when (col+1<b.size) && (b.board.[row].[col+1] = '0' || l1.goalPos = (row,col+1))-> Some (row, col+1)
                    |(_, _) ->  None
       | _ -> failwith "line does not exist"
 
@@ -215,17 +235,12 @@ with
     let foundLine = Map.tryFind c b.lines in
       match foundLine with
       (Some l1) -> match l1.endPos with
-                   (row, col) when (col-1>=0) && (not l1.AtGoal) && (b.board.[row].[col-1] = '0' || l1.goalPos = (row,col-1))-> Some (row, col-1)
+                   (row, col) when (col-1>=0) && (b.board.[row].[col-1] = '0' || l1.goalPos = (row,col-1))-> Some (row, col-1)
                    |(_, _)-> None
       | _ -> failwith "line does not exist"
     
 
-//What the function that reads in puzzle from a file should return
-type FileInput = int * string
-
-
 //takes in the file representation and converts to n by n char list
-//invalid check should be move elsewhere
 let rec convertToCharListList (f: FileInput) : char list list =
   match f with
   (len, str) -> split len (Array.toList (str.ToCharArray())) 
@@ -246,7 +261,6 @@ and removeN (n: int)(c: char list): char list =
 
 
 //takes in the file input and outputs the map representation
-//should move the invalid check seperately
 let rec convertToMap (f: FileInput) : Map<char, Line> =
   match f with
     (len, str)  -> addToMap len (Array.toList (str.ToCharArray()))
@@ -305,9 +319,7 @@ let private isLower x y descendent = not (isGreater x y descendent)
 
 type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool) =
     let heap : System.Collections.Generic.List<'T> = System.Collections.Generic.List<'T>(values)
-    
     let mutable size = heap.Count
-
 
     let parent i = (i - 1) / 2
     let leftChild i = 2 * i + 1
@@ -368,7 +380,7 @@ type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool)
 
 
 let GreedyBestFirst(fileState: FileInput): BoardState option =
-  algorithm <- greedyBest //this changes comparable to h(s)
+  heuristic <- greedyBest //this changes comparable to h(s)
   let mutable tempBoard = constructInitialBoard fileState
   let queue = new PriorityQueue<BoardState>([|tempBoard|])
   let mutable beenTo = Set.empty<string>
@@ -386,7 +398,7 @@ let GreedyBestFirst(fileState: FileInput): BoardState option =
 
 
 let AStar(fileState: FileInput): BoardState option =
-  algorithm <- aStar //this changes comparable to h(s) + g(s)
+  heuristic <- aStar //this changes comparable to h(s) + g(s)
   let mutable tempBoard = constructInitialBoard fileState
   let queue = new PriorityQueue<BoardState>([|tempBoard|])
   let mutable beenTo = Set.empty<string>
@@ -404,13 +416,12 @@ let AStar(fileState: FileInput): BoardState option =
 
 //Part 2 improvement:
 let IDAStar(fileState: FileInput): BoardState option =
-  algorithm <- aStar //same comparable as A*
+  heuristic <- aStar //same comparable as A*
   let mutable tempBoard = constructInitialBoard fileState
   //Part 2 improvement:
   //The minimum depth of the solution is the ManhattanDistance
   let mutable depth = tempBoard.GetManhattanDistance
   while(not tempBoard.AtGoal && depth <= tempBoard.size * tempBoard.size) do
-    printfn "%d" depth
     tempBoard <- constructInitialBoard fileState
     
     let queue = new PriorityQueue<BoardState>([|tempBoard|])
@@ -435,11 +446,11 @@ let IDAStar(fileState: FileInput): BoardState option =
 //let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
 //let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
 
-let testInput = (3, "ABAC0C0B0")
+//let testInput = (3, "ABAC0C0B0")
 
 //let testInput = (3, "a00b000ba")
 //let testInput = (5,"Y00000000000G00BGR0YR000B")
-//let testInput = (5,"000RGR000000Y00000B0GBY00")
+let testInput = (5,"000RGR000000Y00000B0GBY00")
 //let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
 //let testInput = (8, "0n00000n0r0z0cq0kq0v00000000000000zr00v0000000000000000000c0k000")
 //let testInput = (8,"0f0000000f00000r0000000v0r00p00000000000v000000y0000y00000000p00")
@@ -451,14 +462,26 @@ let testInput = (3, "ABAC0C0B0")
 //   |(None) -> printfn "no solution"
 
 //run AStar
-// let solutionAStar = AStar testInput
-// match solutionAStar with
-//   (Some sol) -> sol.Print
-//   |(None) -> printfn "no solution"
-
-//IDAStar
-let solutionIDAStar = IDAStar testInput
-match solutionIDAStar with
+let solutionAStar = AStar testInput
+match solutionAStar with
   (Some sol) -> sol.Print
   |(None) -> printfn "no solution"
 
+//IDAStar
+// let solutionIDAStar = IDAStar testInput
+// match solutionIDAStar with
+//   (Some sol) -> sol.Print
+//   |(None) -> printfn "no solution"
+
+//TODO: add timeout and results stuff
+// let analysis =
+//   for i in getPuzzles do
+//     match GreedyBestFirst i with
+//       (Some sol) -> sol.Print
+//       |(None) -> printfn "no solution"
+//     match AStar i with
+//       (Some sol) -> sol.Print
+//       |(None) -> printfn "no solution"
+//     match IDAStar i with
+//       (Some sol) -> sol.Print
+//       |(None) -> printfn "no solution"
