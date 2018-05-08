@@ -113,7 +113,7 @@ with
   interface IComparable<BoardState> with
     member this.CompareTo other =
       if (heuristic = greedyBest) then
-        compare  other.GetGreedyBest this.GetGreedyBest
+        compare this.GetGreedyBest other.GetGreedyBest
       else if (heuristic = aStar) then 
         compare other.GetAStar this.GetAStar
         // if this.GetAStar = other.GetAStar then
@@ -181,9 +181,9 @@ with
     // Also no need to get next states if already at goal or within one of goal
     let mutable stop = false
     for (k,v) in Map.toList b.lines do
-      if v.WithinOne && not stop then
-        boards <- [b.Update v.name v.goalPos]
-        stop <- true
+      // if v.WithinOne && not stop then
+      //   boards <- [b.Update v.name v.goalPos]
+      //   stop <- true
       if not stop && not v.AtGoal then
         match b.GetNextStatesOfLine k with
         |[] -> boards<- []
@@ -475,7 +475,7 @@ let IDAStar(fileState: FileInput): BoardState option =
 //let testInput = (8, "0n00000n0r0z0cq0kq0v00000000000000zr00v0000000000000000000c0k000")
 let testInput = (8,"0f0000000f00000r0000000v0r00p00000000000v000000y0000y00000000p00")
 
-let testInput = (8, "000p0u00m0v0vt000m0000000000000p00ex0000ue00ss000000x000t0000000")
+//let testInput = (10, "000vz000t00j00000gv0000zt0000n000000c0000000w0h0n00000cj0000000000000w000bb000000000h0000000000000g0")
 
 //Run Greedy
 // let solutionGreedy = GreedyBestFirst testInput
@@ -487,7 +487,7 @@ let cons = constructInitialBoard testInput
 cons.Print
 
 //run AStar
-let solutionAStar = AStar testInput
+let solutionAStar = GreedyBestFirst testInput
 match solutionAStar with
   (Some sol) -> sol.Print
   |(None) -> printfn "no solution"
