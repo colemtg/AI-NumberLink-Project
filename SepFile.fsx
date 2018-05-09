@@ -1,5 +1,51 @@
-//TODO: integrate file reading and randomly generated boards
-//TODO: analysis
+(*
+Project 1: Numberlink Puzzle
+We implemented the state of the board as n by n list of char and a map of <char,Line> where
+the Line kept track of the length, the goal position in the board, and the current end of the
+line position in the board. Each state gets its next state by checking if each end of line can
+extend up,down,right, or left. Those next states are returned and added to the priority queue.
+For greedy best first search the priority queue is ordered on the manhattan distance by implementing
+comparable for the board which compare the manhattan distances.
+For A* search the priority queue is ordered on the manhattan distance + the cost. The cost is the
+total cost of each line in the board.
+
+The starting configuration boards are randomly generated using a python script. These boards are 
+included in file: testCases.txt which needs to be located in the same directory as this file to work.
+The boards are validated when the initial representation is constructed. The validation checks if
+there are the correct number (n^2, where n is board size) and if there exactly 2 of each non zero
+char.
+
+For part two we implemented A* with iterative deepening. We improved it by starting the inital max
+depth to be the least possible solution of the board (the manhattan distance) and then incrementing by
+1 until the solution is found or it reach the max solution (the entire board is filled: n^2).
+
+Other improvements we made for part two:
+If a line is not at the goal and if it has no more possible moves (trapped) then there are no next
+states because there would be no reason to continue expanding.
+Changing the beenTo set which keeps track of the boards that have already been expanded to count
+some boards as identical to save time and prevent uneeded node expansion. This problem is especially
+an issue with random boards where the are multiple least cost solutions going from position a to position
+b that are slighlty different but for the sake of the solution are the same.
+Example
+With the initial board of:
+a 0 0
+0 0 0
+0 0 a
+the states:
+a a 0      a 0 0 
+0 a 0      a a 0
+0 0 a      0 0 0
+can be thought of as the same which prevents unecessary node expansion. For a simple problem like a
+3 by 3 this improvement is not noticable. But it makes a lot of the larger puzzles much quicker to
+solve.
+
+Statistics:
+Number of unique expanded Nodes: Size of beenTo + size of queue at end
+Cost: g(s) of solution board
+Depth: g(s) + 1(root) because as the depth is increased, the cost increases by one
+Branching Factor: Max: 4*number of lines 
+
+*)
 
 open System
 open Microsoft.FSharp.Core
@@ -7,6 +53,7 @@ open System.IO
 
 //What the function that reads in the puzzles from a file should return
 type FileInput = int * string
+
 
 //auxiliary function used in reverse
 let rec append l m =
@@ -25,7 +72,6 @@ let reverse l = if l <> [] then move l [] else failwith "empty list"
 
 //reads in 250 files from a puzzle
 let getPuzzles: FileInput list = 
-
   //Retrieve directory path
   let baseDirectory = __SOURCE_DIRECTORY__
   let baseDirectory' = Directory.GetParent(baseDirectory)
@@ -51,6 +97,7 @@ let getPuzzles: FileInput list =
   boardarr <- reverse boardarr
   //convert corresponding elements in each array to tuple so can be converted to proper data structure 
   let mutable boardstuplearr: FileInput list = []
+
   for i in 0 ..(boardarr.Length - 1) do
     boardstuplearr <- ( (int)sizearr.[i], boardarr.[i]) :: boardstuplearr
 
@@ -59,13 +106,22 @@ let getPuzzles: FileInput list =
 
 
 //change this to change how comparable is implemented
+//greedyBest signifies that comparable compare h(s)
+//aStar signifies that comparable compares g(s) + h(s)
 let mutable heuristic = ""
 let aStar = "astar"
 let greedyBest = "greedy"
 
+//position within the board (x,y)
 type Pos = int * int
 
-//represents the a line in the puzzle
+//Line Record: represents a line in the board
+//Each line knows its current end of line position, goal position and length
+//the length is needed to calculate the g(s)
+//Line also has the ability to calculate its manhattan distance which is used for h(s)
+//Manhattan distance = |goalPos X - endPos X| + |goalPos Y - endPos Y|
+//Because the manhattan distance will always underestimate or equal the cost it is an
+// admissable heuristic
 type Line = {name: char; endPos: Pos; goalPos: Pos; length: int}
 with
   //updates the postion of the end of the line, adds one to length
@@ -80,16 +136,15 @@ with
   //checks if AtGoal
   member l.AtGoal = l.endPos = l.goalPos
 
-  //checks if within one of goal
-  member l.WithinOne = 1 = l.GetManhattanDistance
-
-  //uniqueness
+  //prevents duplicate lines that are different but can be thought of as the same
   member l.Hash = 
    match l.endPos with
-   | (r,c) -> string l.name + string r + string c  + string l.length + string l.GetManhattanDistance
+   | (r,c) -> string l.name + string r + string c  + string (l.length + l.GetManhattanDistance)
 
 
-//sets the Pos in the board to the char
+//Updates the n by n char list with the expansion of the line by one position
+//Checks that the replacement position within the bounds of the board and is not
+//already occupied by another line. This should never occur but just there as an extra check.
 let rec replacePos (c: char)(p: Pos)(old: char list list): char list list =
   match p with
   | (row,col) when row>=old.Length || col>=old.Length || row<0 || col<0 -> failwith "Position out of bounds"
@@ -107,62 +162,62 @@ and inRow (c:char)(row: char list)(col:int) =
   | (x :: xs) -> x:: inRow c xs (col-1)
   | [] -> []
 
-//update this with functions for getting next states, getting cost and heuristic
+//BoardState Record: represents the state/node
+//Each board has a size, a map of the Lines in the board, and a n by n list of the board
+//The map is used to easily access postions of the lines, and the n by n list is used to
+//check if a line can expand in a particular direction.
+//Can get the next possible states of the current BoardState, check if puzzle is solved, 
+//and calculate the g(s) and h(s) by summing the g(s) and h(s) of each line
 [<CustomComparison; StructuralEquality>]
 type BoardState = {size: int; lines: Map<char,Line>; board: char list list}
 with
+  //compares the different f(s). h(s) or g(s) + h(s)
+  //This implementation allows to easily change to a or add a different heuristic
+  // to order the priority queue by.
   interface IComparable<BoardState> with
     member this.CompareTo other =
       if (heuristic = greedyBest) then
-        compare this.GetGreedyBest other.GetGreedyBest
-      else if (heuristic = aStar) then 
+        compare other.GetGreedyBest this.GetGreedyBest
+      else if (heuristic = aStar) then
         compare other.GetAStar this.GetAStar
-        // if this.GetAStar = other.GetAStar then
-        //   compare this.GetManhattanDistance other.GetManhattanDistance
-        // else
-        //   compare this.GetAStar other.GetAStar
       else 0 //just treat as the same
   interface IComparable with
     member this.CompareTo(obj: obj) =
       match obj with
       | :? BoardState when (heuristic = greedyBest) -> compare (unbox<BoardState> obj).GetGreedyBest this.GetGreedyBest
-      //Part 2 improvement:
-        // if same heuristic tiebreaker is lower h(s)
       | :? BoardState when (heuristic = aStar) -> compare (unbox<BoardState> obj).GetAStar this.GetAStar
-        //if ((unbox<BoardState> obj).GetAStar) = this.GetAStar then
-          //compare this.GetManhattanDistance (unbox<BoardState> obj).GetManhattanDistance
-        //else
-          //compare this.GetAStar (unbox<BoardState> obj).GetAStar
       | :? BoardState -> 0 
       | _ -> invalidArg "obj" "Must be of type BoardState"
 
-  //prints the 2d representation of the board  
+  //prints the 2d representation of the board, used for debugging and printing solution  
   member b.Print =
     for rows in b.board do
       printfn "%A" rows
 
-  //uniqueness
+  //concatenates the hash of each line, used to create a unique representation of the BoardState
   member b.Hash =
     Map.fold (fun state _ (value:Line) -> state + value.Hash) "" b.lines
 
-  //g(s) + h(s)
+  //f(n) = g(s) + h(s)
   member b.GetAStar = b.GetCost + b.GetManhattanDistance
   
-  //h(s)
+  //f(n) = h(s)
   member b.GetGreedyBest = b.GetManhattanDistance
+
+  //Sum of the lenghs of each Line
   member b.GetCost =
     Map.fold (fun state _ (value:Line) -> state + value.length) 0 b.lines
 
-  //h(s) = manhattan distance
+  //Sum of the manhattan distances of each Line
   member b.GetManhattanDistance = 
     Map.fold (fun state _ (value:Line) -> state + value.GetManhattanDistance) 0 b.lines
   
+  //checks if the puzzle is solved by checking if the manhattan distance of the current state is 0
+  //if the manhattan distance is 0 that means that each line is 0 away from the goal (at the goal)
   member b.AtGoal =
-    //Part 2 improvement:
-    //can't be the goal if cost not at least the manhattan distance
-    if (b.GetCost<b.GetManhattanDistance) then false
-    else Map.fold(fun state _ (value:Line) -> state && value.AtGoal) true b.lines
-  
+     b.GetManhattanDistance=0
+
+
   //returns a board updated with the new pos of the end of the inputted line
   member b.Update(c:char)(p: Pos): BoardState =
     let foundLine = Map.tryFind c b.lines in 
@@ -173,18 +228,17 @@ with
     in
     {size = b.size; lines = lines'; board = replacePos c p b.board}
 
-  //gets all of the possible next states
+  //gets all of the possible next states of the current BoardState by looping through each
+  // Line and getting the expansions in the different directions
+  //Will not expand a line if already at its goal, doesn't need to continue past the goal position
   member b.GetNextStates : BoardState list =
     let mutable boards = []
     //Part 2 improvement:
     //if a line is not a goal, and has no next states (trapped) then this
     // path is a dead end and no need to continue
-    // Also no need to get next states if already at goal or within one of goal
+    // Also no need to get next states if already at goal
     let mutable stop = false
     for (k,v) in Map.toList b.lines do
-      // if v.WithinOne && not stop then
-      //   boards <- [b.Update v.name v.goalPos]
-      //   stop <- true
       if not stop && not v.AtGoal then
         match b.GetNextStatesOfLine k with
         |[] -> boards<- []
@@ -194,6 +248,7 @@ with
 
 
  //gets next states of a paritcular line by checking if can move in a particular direction
+ //There is probably a better way to do this but left it like this for simplicity and readabillity
   member b.GetNextStatesOfLine (c:char) : BoardState list =
     let pos =  Map.tryFind c b.lines in
       match (b.CanMoveDown pos), (b.CanMoveLeft pos), (b.CanMoveRight pos), (b.CanMoveUp pos) with
@@ -397,17 +452,19 @@ let GreedyBestFirst(fileState: FileInput): BoardState option =
   beenTo<- beenTo.Add tempBoard.Hash
   let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 
+
   while ((not tempBoard.AtGoal) && (queue.getSize <> 0) && (stopWatch.Elapsed.TotalMilliseconds < 100000.0)) do
     for i in tempBoard.GetNextStates do
-      if not (beenTo.Contains i.Hash) then 
-        queue.Enqueue i
-        beenTo <- beenTo.Add i.Hash
+      //if not (beenTo.Contains i.Hash) then 
+      queue.Enqueue i
+        //beenTo <- beenTo.Add i.Hash
     tempBoard <- queue.Dequeue()
 
   if tempBoard.AtGoal then 
     printfn "%s" ("#Expanded Nodes:" + string (queue.getSize + beenTo.Count))
     Some tempBoard
   else None  
+
 
 
 //Heuristic used by A* search is h(s) + g(s), which is the manhattan distance + actual cost from given position to the goal state. Iterate through the 
@@ -424,10 +481,13 @@ let AStar(fileState: FileInput): BoardState option =
   beenTo<- beenTo.Add tempBoard.Hash
   let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 
+
   while ((not tempBoard.AtGoal) && (queue.getSize <> 0) && (stopWatch.Elapsed.TotalMilliseconds < 100000.0)) do
-    //printfn "%s" "here"
     for i in tempBoard.GetNextStates do
-      //i.Print
+      // if i.GetManhattanDistance<2 then
+        // printfn "%s" "Next states:"
+        // i.Print
+        // printfn "%d" i.GetAStar
       //printfn "%s" i.Hash
       if not (beenTo.Contains i.Hash) then 
         queue.Enqueue i
@@ -468,54 +528,12 @@ let IDAStar(fileState: FileInput): BoardState option =
     Some tempBoard
   else None  
 
-//test boards
-//let testInput = (7, "000D0000C00BE0000CA00000E000000000000A0000B000D00")
-//let testInput = (5,"000RG00BG0R0000PB0YP0000Y")
-//let testInput = (7,"0000000GR000R0PG000000B0B0000YP00Y000000000000000")
-//let testInput = (5, "B0YRP000000Y0000R0PG0BG00")
-
-//let testInput = (3, "ABAC0C0B0")
-
-//let testInput = (3, "a00b000ba")
-//let testInput = (4, "a000ba0b00000000") 
-//let testInput = (5,"Y00000000000G00BGR0YR000B")
-//let testInput = (5,"A0000B00000000000000000BA")
-//let testInput = (5,"000RGR000000Y00000B0GBY00")
-//let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
-//let testInput = (8, "0n00000n0r0z0cq0kq0v00000000000000zr00v0000000000000000000c0k000")
-//let testInput = (8,"0f0000000f00000r0000000v0r00p00000000000v000000y0000y00000000p00")
-
-//let testInput = (10, "000vz000t00j00000gv0000zt0000n000000c0000000w0h0n00000cj0000000000000w000bb000000000h0000000000000g0")
-
-//Run Greedy
-// let solutionGreedy = GreedyBestFirst testInput
-// match solutionGreedy with
-//   (Some sol) -> sol.Print
-//   |(None) -> printfn "no solution"
-// let cons = constructInitialBoard testInput
-// cons.Print
-
-//run AStar
-
-// let solutionAStar = GreedyBestFirst testInput
-// match solutionAStar with
-//   (Some sol) -> sol.Print
-//   |(None) -> printfn "no solution"
-
-
-
-//IDAStar
-// let solutionIDAStar = IDAStar testInput
-// match solutionIDAStar with
-//   (Some sol) -> sol.Print
-//   |(None) -> printfn "no solution"
-
-//TODO: add timeout and results stuff
 
 let mutable runningTimeGreedy = 0.0
 let mutable runningTimeAStar = 0.0
 let mutable thetimes = []
-
+//iterate through all puzzles and run greedy best first search and A* on them. Collect timethey take
+//and add the times as a tuple to the thetimes array. 
 for i in getPuzzles do
   let stopWatch = System.Diagnostics.Stopwatch.StartNew()
   match GreedyBestFirst i with
@@ -535,4 +553,3 @@ for i in getPuzzles do
   thetimes <- (runningTimeGreedy, runningTimeAStar) :: thetimes
 
 thetimes <- reverse thetimes
-
