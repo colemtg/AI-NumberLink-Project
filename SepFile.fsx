@@ -70,11 +70,12 @@ let move l1 l2 =
 //reverse items in a list function
 let reverse l = if l <> [] then move l [] else failwith "empty list"
 
+//Retrieve directory path
+let baseDirectory = __SOURCE_DIRECTORY__
+let baseDirectory' = Directory.GetParent(baseDirectory)
 //reads in 250 files from a puzzle
 let getPuzzles: FileInput list = 
-  //Retrieve directory path
-  let baseDirectory = __SOURCE_DIRECTORY__
-  let baseDirectory' = Directory.GetParent(baseDirectory)
+  //use to get the test cases
   let filePath = "AI-NumberLink-Project/testCases.txt"
   let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
   //Converted each line in text as elements 
@@ -436,7 +437,9 @@ type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool)
         size <- size + 1
         siftUp (size - 1)
 
-
+let mutable greedyExpandedNodes = 0
+let mutable greedyCost = 0
+let mutable greedyBranching = 0
 //Heuristic used by greedy best first search is h(s), which is the manhattan distance. The manhattan distance will always 
 //be admissible, that is it will always underestimate or equal the actual cost to reach the goal. Iterate through the 
 //board possibilities that have not been explored. Enqueue the randomly generated m by m board into the priority queue we
@@ -461,12 +464,18 @@ let GreedyBestFirst(fileState: FileInput): BoardState option =
     tempBoard <- queue.Dequeue()
 
   if tempBoard.AtGoal then 
-    printfn "%s" ("#Expanded Nodes:" + string (queue.getSize + beenTo.Count))
+    greedyExpandedNodes <- queue.getSize + beenTo.Count
+    greedyCost <- tempBoard.GetCost
+    greedyBranching <- 4*tempBoard.lines.Count
     Some tempBoard
-  else None  
+  else
+    greedyExpandedNodes <- -69
+    None  
 
 
-
+let mutable aStarExpandedNodes = 0
+let mutable aStarCost = 0
+let mutable aStarBranching = 0
 //Heuristic used by A* search is h(s) + g(s), which is the manhattan distance + actual cost from given position to the goal state. Iterate through the 
 //board possibilities that have not been explored. Enqueue the randomly generated m by m board into the priority queue we
 //are using to maintain cost of 'nodes', in this case the potential solutions. Then, enqueue board states that have not been visited
@@ -484,20 +493,19 @@ let AStar(fileState: FileInput): BoardState option =
 
   while ((not tempBoard.AtGoal) && (queue.getSize <> 0) && (stopWatch.Elapsed.TotalMilliseconds < 100000.0)) do
     for i in tempBoard.GetNextStates do
-      // if i.GetManhattanDistance<2 then
-        // printfn "%s" "Next states:"
-        // i.Print
-        // printfn "%d" i.GetAStar
-      //printfn "%s" i.Hash
       if not (beenTo.Contains i.Hash) then 
         queue.Enqueue i
         beenTo <- beenTo.Add i.Hash
     tempBoard <- queue.Dequeue()
 
   if tempBoard.AtGoal then 
-    printfn "%s" ("#Expanded Nodes:" + string (queue.getSize + beenTo.Count))
+    aStarExpandedNodes <- queue.getSize + beenTo.Count
+    aStarCost <- tempBoard.GetCost
+    aStarBranching <- 4*tempBoard.lines.Count
     Some tempBoard
-  else None 
+  else 
+    aStarExpandedNodes <- -69
+    None 
 
 //Part 2 improvement: Use the same heuristic as A* but explore all states at the smallest depth which there could be a solution. 
 //If no solution, increase the depth size and iterate through all board states again. 
@@ -550,6 +558,153 @@ for i in getPuzzles do
   stopWatch.Stop()
   runningTimeAStar <- stopWatch.Elapsed.TotalMilliseconds
 
-  thetimes <- (runningTimeGreedy, runningTimeAStar) :: thetimes
+  let (mValue, _) = i
+
+  //printfn "%s" ("Greedy: " +  string(runningTimeGreedy) + " A*: " + string(runningTimeAStar))
+  let greedy_tup = (greedyExpandedNodes, greedyCost, greedyBranching, runningTimeGreedy)
+  let aStar_tup = (aStarExpandedNodes, aStarCost, aStarBranching, runningTimeAStar)
+  let analysis_tup = (mValue, greedy_tup, aStar_tup)
+  thetimes <- analysis_tup :: thetimes
 
 thetimes <- reverse thetimes
+
+
+let filePath = "AI-NumberLink-Project/analysis_results.txt"
+let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
+
+type aggregateStat = int * int * int * int * int
+let printNumbersToFile fileName =
+   use file = System.IO.File.CreateText(fileName)
+
+   let mutable solvableGreedy = 0
+   let mutable solvableAStar = 0
+
+ 
+
+   let mutable greedy8 = []
+   let mutable greedy9 = []
+   let mutable greedy10 = []
+   let mutable greedy11 = []
+   let mutable greedy12 = []
+
+   let mutable aStar8 = []
+   let mutable aStar9 = []
+   let mutable aStar10 = []
+   let mutable aStar11 = []
+   let mutable aStar12 = []
+   //let mutable greedy 
+
+   for tup in thetimes do
+    let (mVal, greedyTup, aStarTup) = tup
+    let (_, _, _, runningTimeGreedy) = greedyTup
+    let (_, _, _, runningTimeAStar) = aStarTup
+    
+    if(runningTimeGreedy < 100000.0) then
+      if(mVal = 8) then
+        greedy8 <- greedyTup :: greedy8
+      else if(mVal = 9) then
+        greedy9 <- greedyTup :: greedy9
+      else if(mVal = 10) then
+        greedy10 <- greedyTup :: greedy10
+      else if(mVal = 11) then
+        greedy11 <- greedyTup :: greedy11
+      else if(mVal = 12) then
+        greedy12 <- greedyTup :: greedy12
+
+      solvableGreedy <- solvableGreedy + 1
+
+    if(runningTimeAStar < 100000.0) then
+      if(mVal = 8) then
+        aStar8 <- aStarTup :: aStar8
+      else if(mVal = 9) then
+        aStar9 <- aStarTup :: aStar9
+      else if(mVal = 10) then
+        aStar10 <- aStarTup :: aStar10
+      else if(mVal = 11) then
+        aStar11 <- aStarTup :: aStar11
+      else if(mVal = 12) then
+        aStar12 <- aStarTup :: aStar12
+      
+      solvableAStar <- solvableAStar + 1 
+
+    let mutable averageResultsGreedy = [] 
+    let mutable averageResultsAStar = [] 
+
+    
+
+    let findAverageGreedy greedyArr =
+      let mutable counter = 0
+      let mutable totalExpandedNodes = 0
+      let mutable totalCost = 0
+      let mutable totalBranching = 0
+      let mutable runningTimeTotal = 0.0
+
+      for gT in greedyArr do
+        let (greedyExpandedNodes, greedyCost, greedyBranching, runningTimeGreedy) = gT
+        totalExpandedNodes <- totalExpandedNodes + greedyExpandedNodes
+        totalCost <- totalCost + greedyCost
+        totalBranching <- totalBranching + greedyBranching
+        runningTimeTotal <- runningTimeTotal + runningTimeGreedy 
+        counter <- counter + 1
+      printfn "%i" counter
+      averageResultsGreedy <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsGreedy
+      
+    let findAverageAStar aStarArr =
+      let mutable counter = 0
+      let mutable totalExpandedNodes = 0
+      let mutable totalCost = 0
+      let mutable totalBranching = 0
+      let mutable runningTimeTotal = 0.0
+
+      for gT in aStarArr do
+        let (aStarExpandedNodes, aStarCost, aStarBranching, runningTimeAStar) = gT
+        totalExpandedNodes <- totalExpandedNodes + aStarExpandedNodes
+        totalCost <- totalCost + aStarCost
+        totalBranching <- totalBranching + aStarBranching
+        runningTimeTotal <- runningTimeTotal + runningTimeAStar 
+        counter <- counter + 1
+
+     
+
+      averageResultsAStar <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsAStar
+      
+    fprintf file "%s" ("Part 1-- Solvable Greedy: " + string(solvableGreedy) + " Unsolvable/Timed Out: " + string(250-solvableGreedy))
+    fprintf file "\n"
+    fprintf file "%s" ("Part 1-- Solvable A*: " + string(solvableAStar) + " Unsolvable/Timed Out: " + string(250-solvableAStar))
+    fprintf file "\n"
+
+    printfn "%s" "slaty"
+    printfn "%A" greedy8
+    findAverageGreedy greedy8
+    findAverageGreedy greedy9
+    findAverageGreedy greedy10
+    findAverageGreedy greedy11
+    findAverageGreedy greedy12
+
+    averageResultsGreedy <- reverse averageResultsGreedy
+
+    let mutable mSize = 8
+    for x in averageResultsGreedy do
+      let (expandedNodes, cost, branching, runningTime) = x
+      fprintf file "%s" ("Part 2--" + string(mSize) + "x" + string(mSize) + "Average Expanded Nodes: " + string(expandedNodes) + " " + " Average Cost: " + string(cost) + " Aveage Branching: " + string(branching) + " Average running time: " + string(runningTime))
+      fprintf file "\n"
+      mSize <- mSize + 1
+
+    findAverageAStar aStar8
+    findAverageAStar aStar9
+    findAverageAStar aStar10
+    findAverageAStar aStar11
+    findAverageAStar aStar12
+
+    averageResultsAStar <- reverse averageResultsAStar
+    mSize <- 8
+    for x in averageResultsAStar do
+      let (expandedNodes, cost, branching, runningTime) = x
+      fprintf file "%s" ("Part 2--" + string(mSize) + "x" + string(mSize) + "Average Expanded Nodes: " + string(expandedNodes) + " " + " Average Cost: " + string(cost) + " Aveage Branching: " + string(branching) + " Average running time: " + string(runningTime))
+      fprintf file "\n"
+      mSize <- mSize + 1
+
+
+          
+   
+printNumbersToFile fullPath
