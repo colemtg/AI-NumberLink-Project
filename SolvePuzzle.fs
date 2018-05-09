@@ -71,10 +71,12 @@ with
     | (x1,y1),(x2,y2) -> abs (x1-x2) + abs (y1-y2)
 
   //checks if AtGoal
-  member l.AtGoal = l.endPos = l.goalPos
+  member l.AtGoal = 
+    l.endPos = l.goalPos
 
   //checks if within one of goal
-  member l.WithinOne = 1 = l.GetManhattanDistance
+  member l.WithinOne = 
+    1 = l.GetManhattanDistance
 
   //uniqueness
   member l.Hash = 

@@ -8,53 +8,54 @@ open System.IO
 //What the function that reads in the puzzles from a file should return
 type FileInput = int * string
 
-// //reads in 250 files from a puzzle
-// let getPuzzles: FileInput list = 
-// //auxiliary function used in reverse
-//   let rec append l m =
-//     match l with
-//     | [] -> m 
-//     | h :: t -> h :: (append t m) 
-//   //auxiliary function used in reverse
-//   let move l1 l2 =
-//       let rec reverser l1m = function
-//         | [] -> append l1m l2
-//         | x::l1 -> reverser(x::l1m) l1
-//       reverser [] l1
+//auxiliary function used in reverse
+let rec append l m =
+  match l with
+  | [] -> m 
+  | h :: t -> h :: (append t m) 
+//auxiliary function used in reverse
+let move l1 l2 =
+    let rec reverser l1m = function
+      | [] -> append l1m l2
+      | x::l1 -> reverser(x::l1m) l1
+    reverser [] l1
 
-//   move ([1;2;3]:int list) ([7;8]:int list) 
-//   //reverse items in a list function
-//   let reverse l = if l <> [] then move l [] else failwith "empty list"
-//   //Retrieve directory path
-//   let baseDirectory = __SOURCE_DIRECTORY__
-//   let baseDirectory' = Directory.GetParent(baseDirectory)
-//   let filePath = "AI-NumberLink-Project/testCases.txt"
-//   let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
-//   //Converted each line in text as elements 
-//   let data =  File.ReadAllLines(fullPath)
+//reverse items in a list function
+let reverse l = if l <> [] then move l [] else failwith "empty list"
 
-//   let mutable counter = 1
-//   let mutable sizearr = []
-//   let mutable boardarr = []
-//   //Depending on line number, add to size array or board array
-//   for value in data do
-//     if counter%3 = 1 then 
-//       if value.Length > 0 then
-//         sizearr <- value :: sizearr
-//     else if counter%3 = 2 then 
-//       if value.Length > 0 then
-//         boardarr <- value :: boardarr
-//     counter <- counter + 1
+//reads in 250 files from a puzzle
+let getPuzzles: FileInput list = 
 
-//   sizearr <- reverse sizearr
-//   boardarr <- reverse boardarr
-//   //convert corresponding elements in each array to tuple so can be converted to proper data structure 
-//   let mutable boardstuplearr: FileInput list = []
-//   for i in 0 ..249 do
-//     boardstuplearr <- ( (int)sizearr.[i], boardarr.[i]) :: boardstuplearr
+  //Retrieve directory path
+  let baseDirectory = __SOURCE_DIRECTORY__
+  let baseDirectory' = Directory.GetParent(baseDirectory)
+  let filePath = "AI-NumberLink-Project/testCases.txt"
+  let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
+  //Converted each line in text as elements 
+  let data =  File.ReadAllLines(fullPath)
 
-//   boardstuplearr <- reverse boardstuplearr
-//   boardstuplearr
+  let mutable counter = 1
+  let mutable sizearr = []
+  let mutable boardarr = []
+  //Depending on line number, add to size array or board array
+  for value in data do
+    if counter%3 = 1 then 
+      if value.Length > 0 then
+        sizearr <- value :: sizearr
+    else if counter%3 = 2 then 
+      if value.Length > 0 then
+        boardarr <- value :: boardarr
+    counter <- counter + 1
+
+  sizearr <- reverse sizearr
+  boardarr <- reverse boardarr
+  //convert corresponding elements in each array to tuple so can be converted to proper data structure 
+  let mutable boardstuplearr: FileInput list = []
+  for i in 0 ..(boardarr.Length - 1) do
+    boardstuplearr <- ( (int)sizearr.[i], boardarr.[i]) :: boardstuplearr
+
+  boardstuplearr <- reverse boardstuplearr
+  boardstuplearr
 
 
 //change this to change how comparable is implemented
@@ -192,7 +193,7 @@ with
     boards
 
 
- //gets next states of a paritcular line by checking if can move in a particualr direction
+ //gets next states of a paritcular line by checking if can move in a particular direction
   member b.GetNextStatesOfLine (c:char) : BoardState list =
     let pos =  Map.tryFind c b.lines in
       match (b.CanMoveDown pos), (b.CanMoveLeft pos), (b.CanMoveRight pos), (b.CanMoveUp pos) with
@@ -381,46 +382,49 @@ type PriorityQueue<'T when 'T : comparison>(values: seq<'T>, isDescending: bool)
         siftUp (size - 1)
 
 
-
+//Heuristic used by greedy best first search is h(s), which is the manhattan distance. The manhattan distance will always 
+//be admissible, that is it will always underestimate or equal the actual cost to reach the goal. Iterate through the 
+//board possibilities that have not been explored. Enqueue the randomly generated m by m board into the priority queue we
+//are using to maintain cost of 'nodes', in this case the potential solutions. Then, enqueue board states that have not been visited
+//from the dequeued board state. In order to prevent iterating through previously visited list of board states, we mantain a list 
+//that has a unique has for each board state that has been visited. Timeout is after 100 seconds, which we automatically determine
+//the puzzle is unsolvable. 
 let GreedyBestFirst(fileState: FileInput): BoardState option =
   heuristic <- greedyBest //this changes comparable to h(s)
   let mutable tempBoard = constructInitialBoard fileState
   let queue = new PriorityQueue<BoardState>([|tempBoard|])
   let mutable beenTo = Set.empty<string>
   beenTo<- beenTo.Add tempBoard.Hash
+  let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 
-  while ((not tempBoard.AtGoal) && (queue.getSize <> 0))  do
+  while ((not tempBoard.AtGoal) && (queue.getSize <> 0) && (stopWatch.Elapsed.TotalMilliseconds < 100000.0)) do
     for i in tempBoard.GetNextStates do
       if not (beenTo.Contains i.Hash) then 
         queue.Enqueue i
         beenTo <- beenTo.Add i.Hash
     tempBoard <- queue.Dequeue()
 
-  if tempBoard.AtGoal then Some tempBoard
+  if tempBoard.AtGoal then 
+    printfn "%s" ("#Expanded Nodes:" + string (queue.getSize + beenTo.Count))
+    Some tempBoard
   else None  
 
 
-let TestAStar(fileState: FileInput): BoardState option =
-  heuristic <- aStar //this changes comparable to h(s) + g(s)
-  let mutable tempBoard = constructInitialBoard fileState
-  let queue = new PriorityQueue<BoardState>([|tempBoard|])
-
-  while ((not tempBoard.AtGoal) && (queue.getSize <> 0))  do
-    for i in tempBoard.GetNextStates do
-      queue.Enqueue i
-    tempBoard <- queue.Dequeue()
-
-  if tempBoard.AtGoal then Some tempBoard
-  else None 
-
+//Heuristic used by A* search is h(s) + g(s), which is the manhattan distance + actual cost from given position to the goal state. Iterate through the 
+//board possibilities that have not been explored. Enqueue the randomly generated m by m board into the priority queue we
+//are using to maintain cost of 'nodes', in this case the potential solutions. Then, enqueue board states that have not been visited
+//from the dequeued board state. In order to prevent iterating through previously visited list of board states, we mantain a list 
+//that has a unique has for each board state that has been visited. Timeout is after 100 seconds, which we automatically determine
+//the puzzle is unsolvable. 
 let AStar(fileState: FileInput): BoardState option =
   heuristic <- aStar //this changes comparable to h(s) + g(s)
   let mutable tempBoard = constructInitialBoard fileState
   let queue = new PriorityQueue<BoardState>([|tempBoard|])
   let mutable beenTo = Set.empty<string>
   beenTo<- beenTo.Add tempBoard.Hash
+  let stopWatch = System.Diagnostics.Stopwatch.StartNew()
 
-  while ((not tempBoard.AtGoal) && (queue.getSize <> 0))  do
+  while ((not tempBoard.AtGoal) && (queue.getSize <> 0) && (stopWatch.Elapsed.TotalMilliseconds < 100000.0)) do
     //printfn "%s" "here"
     for i in tempBoard.GetNextStates do
       //i.Print
@@ -430,10 +434,14 @@ let AStar(fileState: FileInput): BoardState option =
         beenTo <- beenTo.Add i.Hash
     tempBoard <- queue.Dequeue()
 
-  if tempBoard.AtGoal then Some tempBoard
+  if tempBoard.AtGoal then 
+    printfn "%s" ("#Expanded Nodes:" + string (queue.getSize + beenTo.Count))
+    Some tempBoard
   else None 
 
-//Part 2 improvement:
+//Part 2 improvement: Use the same heuristic as A* but explore all states at the smallest depth which there could be a solution. 
+//If no solution, increase the depth size and iterate through all board states again. 
+//Keep repeating this until reach max depth or 10 minutues have been reached. 
 let IDAStar(fileState: FileInput): BoardState option =
   heuristic <- aStar //same comparable as A*
   let mutable tempBoard = constructInitialBoard fileState
@@ -446,17 +454,18 @@ let IDAStar(fileState: FileInput): BoardState option =
     let queue = new PriorityQueue<BoardState>([|tempBoard|])
     let mutable beenTo = Set.empty<string>
     beenTo<- beenTo.Add tempBoard.Hash
-    while ((not tempBoard.AtGoal) && (queue.getSize <> 0))  do
+    
+    while ((not tempBoard.AtGoal) && (queue.getSize <> 0)) do
         if tempBoard.GetCost < depth then 
           for i in tempBoard.GetNextStates do
             if not (beenTo.Contains i.Hash) then 
               queue.Enqueue i
               beenTo <- beenTo.Add i.Hash
         tempBoard <- queue.Dequeue()
-
     depth <- depth + 1
 
-  if tempBoard.AtGoal then Some tempBoard
+  if tempBoard.AtGoal then 
+    Some tempBoard
   else None  
 
 //test boards
@@ -470,10 +479,11 @@ let IDAStar(fileState: FileInput): BoardState option =
 //let testInput = (3, "a00b000ba")
 //let testInput = (4, "a000ba0b00000000") 
 //let testInput = (5,"Y00000000000G00BGR0YR000B")
+//let testInput = (5,"A0000B00000000000000000BA")
 //let testInput = (5,"000RGR000000Y00000B0GBY00")
 //let testInput = (10, "A00000000AB00000000BC00000000CD00000000DE00000000EF00000000FG00000000GH00000000HI00000000IJ00000000J")
 //let testInput = (8, "0n00000n0r0z0cq0kq0v00000000000000zr00v0000000000000000000c0k000")
-let testInput = (8,"0f0000000f00000r0000000v0r00p00000000000v000000y0000y00000000p00")
+//let testInput = (8,"0f0000000f00000r0000000v0r00p00000000000v000000y0000y00000000p00")
 
 //let testInput = (10, "000vz000t00j00000gv0000zt0000n000000c0000000w0h0n00000cj0000000000000w000bb000000000h0000000000000g0")
 
@@ -482,15 +492,17 @@ let testInput = (8,"0f0000000f00000r0000000v0r00p00000000000v000000y0000y0000000
 // match solutionGreedy with
 //   (Some sol) -> sol.Print
 //   |(None) -> printfn "no solution"
-
-let cons = constructInitialBoard testInput
-cons.Print
+// let cons = constructInitialBoard testInput
+// cons.Print
 
 //run AStar
-let solutionAStar = GreedyBestFirst testInput
-match solutionAStar with
-  (Some sol) -> sol.Print
-  |(None) -> printfn "no solution"
+
+// let solutionAStar = GreedyBestFirst testInput
+// match solutionAStar with
+//   (Some sol) -> sol.Print
+//   |(None) -> printfn "no solution"
+
+
 
 //IDAStar
 // let solutionIDAStar = IDAStar testInput
@@ -499,14 +511,28 @@ match solutionAStar with
 //   |(None) -> printfn "no solution"
 
 //TODO: add timeout and results stuff
-// let analysis =
-//   for i in getPuzzles do
-//     match GreedyBestFirst i with
-//       (Some sol) -> sol.Print
-//       |(None) -> printfn "no solution"
-//     match AStar i with
-//       (Some sol) -> sol.Print
-//       |(None) -> printfn "no solution"
-//     match IDAStar i with
-//       (Some sol) -> sol.Print
-//       |(None) -> printfn "no solution"
+
+let mutable runningTimeGreedy = 0.0
+let mutable runningTimeAStar = 0.0
+let mutable thetimes = []
+
+for i in getPuzzles do
+  let stopWatch = System.Diagnostics.Stopwatch.StartNew()
+  match GreedyBestFirst i with
+    (Some sol) -> sol.Print
+    |(None) -> printfn "no solution"
+  stopWatch.Stop()
+  runningTimeGreedy <- stopWatch.Elapsed.TotalMilliseconds
+  stopWatch.Reset()
+
+  stopWatch.Start()
+  match AStar i with
+    (Some sol) -> sol.Print
+    |(None) -> printfn "no solution"
+  stopWatch.Stop()
+  runningTimeAStar <- stopWatch.Elapsed.TotalMilliseconds
+
+  thetimes <- (runningTimeGreedy, runningTimeAStar) :: thetimes
+
+thetimes <- reverse thetimes
+
