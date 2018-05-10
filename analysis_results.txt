@@ -1,2 +1,12 @@
-Part 1-- Solvable Greedy: 1 Unsolvable/Timed Out: 249
-Part 1-- Solvable A*: 1 Unsolvable/Timed Out: 249
+Part 1-- Solvable Greedy: 10 Unsolvable/Timed Out: 240
+Part 1-- Solvable A*: 10 Unsolvable/Timed Out: 240
+Part 2--Greedy Best Result 8x8Average Expanded Nodes: 15  Average Cost: 14 Average Branching: 4 Average running time: 19.18415
+Part 2--Greedy Best Result 9x9Average Expanded Nodes: 17  Average Cost: 16 Average Branching: 4 Average running time: 14.08305
+Part 2--Greedy Best Result 10x10Average Expanded Nodes: 19  Average Cost: 18 Average Branching: 4 Average running time: 16.30075
+Part 2--Greedy Best Result 11x11Average Expanded Nodes: 21  Average Cost: 20 Average Branching: 4 Average running time: 18.94405
+Part 2--Greedy Best Result 12x12Average Expanded Nodes: 23  Average Cost: 22 Average Branching: 4 Average running time: 23.1223
+Part 2--A* 8x8Average Expanded Nodes: 42  Average Cost: 14 Aveage Branching: 4 Average running time: 11.55765
+Part 2--A* 9x9Average Expanded Nodes: 48  Average Cost: 16 Aveage Branching: 4 Average running time: 14.36505
+Part 2--A* 10x10Average Expanded Nodes: 54  Average Cost: 18 Aveage Branching: 4 Average running time: 15.743
+Part 2--A* 11x11Average Expanded Nodes: 60  Average Cost: 20 Aveage Branching: 4 Average running time: 18.884
+Part 2--A* 12x12Average Expanded Nodes: 66  Average Cost: 22 Aveage Branching: 4 Average running time: 23.68445

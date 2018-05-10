@@ -541,7 +541,8 @@ let mutable runningTimeGreedy = 0.0
 let mutable runningTimeAStar = 0.0
 let mutable thetimes = []
 //iterate through all puzzles and run greedy best first search and A* on them. Collect timethey take
-//and add the times as a tuple to the thetimes array. 
+//and add the times as a tuple to the thetimes array.
+
 for i in getPuzzles do
   let stopWatch = System.Diagnostics.Stopwatch.StartNew()
   match GreedyBestFirst i with
@@ -559,7 +560,7 @@ for i in getPuzzles do
   runningTimeAStar <- stopWatch.Elapsed.TotalMilliseconds
 
   let (mValue, _) = i
-
+  
   //printfn "%s" ("Greedy: " +  string(runningTimeGreedy) + " A*: " + string(runningTimeAStar))
   let greedy_tup = (greedyExpandedNodes, greedyCost, greedyBranching, runningTimeGreedy)
   let aStar_tup = (aStarExpandedNodes, aStarCost, aStarBranching, runningTimeAStar)
@@ -568,37 +569,36 @@ for i in getPuzzles do
 
 thetimes <- reverse thetimes
 
-
 let filePath = "AI-NumberLink-Project/analysis_results.txt"
 let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
 
 type aggregateStat = int * int * int * int * int
 let printNumbersToFile fileName =
-   use file = System.IO.File.CreateText(fileName)
+  use file = System.IO.File.CreateText(fileName)
 
-   let mutable solvableGreedy = 0
-   let mutable solvableAStar = 0
+  let mutable solvableGreedy = 0
+  let mutable solvableAStar = 0
 
- 
 
-   let mutable greedy8 = []
-   let mutable greedy9 = []
-   let mutable greedy10 = []
-   let mutable greedy11 = []
-   let mutable greedy12 = []
 
-   let mutable aStar8 = []
-   let mutable aStar9 = []
-   let mutable aStar10 = []
-   let mutable aStar11 = []
-   let mutable aStar12 = []
+  let mutable greedy8 = []
+  let mutable greedy9 = []
+  let mutable greedy10 = []
+  let mutable greedy11 = []
+  let mutable greedy12 = []
+
+  let mutable aStar8 = []
+  let mutable aStar9 = []
+  let mutable aStar10 = []
+  let mutable aStar11 = []
+  let mutable aStar12 = []
    //let mutable greedy 
 
-   for tup in thetimes do
+  for tup in thetimes do
     let (mVal, greedyTup, aStarTup) = tup
     let (_, _, _, runningTimeGreedy) = greedyTup
     let (_, _, _, runningTimeAStar) = aStarTup
-    
+
     if(runningTimeGreedy < 100000.0) then
       if(mVal = 8) then
         greedy8 <- greedyTup :: greedy8
@@ -627,82 +627,77 @@ let printNumbersToFile fileName =
       
       solvableAStar <- solvableAStar + 1 
 
-    let mutable averageResultsGreedy = [] 
-    let mutable averageResultsAStar = [] 
 
+
+  let mutable averageResultsGreedy = [] 
+  let mutable averageResultsAStar = []   
+
+  let findAverageGreedy greedyArr =
+    let mutable counter = 0
+    let mutable totalExpandedNodes = 0
+    let mutable totalCost = 0
+    let mutable totalBranching = 0
+    let mutable runningTimeTotal = 0.0
+    for gT in greedyArr do
+      let (greedyExpandedNodes, greedyCost, greedyBranching, runningTimeGreedy) = gT
+      totalExpandedNodes <- totalExpandedNodes + greedyExpandedNodes
+      totalCost <- totalCost + greedyCost
+      totalBranching <- totalBranching + greedyBranching
+      runningTimeTotal <- runningTimeTotal + runningTimeGreedy 
+      counter <- counter + 1
+    averageResultsGreedy <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsGreedy
     
+  let findAverageAStar aStarArr =
+    let mutable counter = 0
+    let mutable totalExpandedNodes = 0
+    let mutable totalCost = 0
+    let mutable totalBranching = 0
+    let mutable runningTimeTotal = 0.0
 
-    let findAverageGreedy greedyArr =
-      let mutable counter = 0
-      let mutable totalExpandedNodes = 0
-      let mutable totalCost = 0
-      let mutable totalBranching = 0
-      let mutable runningTimeTotal = 0.0
+    for gT in aStarArr do
+      let (aStarExpandedNodes, aStarCost, aStarBranching, runningTimeAStar) = gT
+      totalExpandedNodes <- totalExpandedNodes + aStarExpandedNodes
+      totalCost <- totalCost + aStarCost
+      totalBranching <- totalBranching + aStarBranching
+      runningTimeTotal <- runningTimeTotal + runningTimeAStar 
+      counter <- counter + 1
 
-      for gT in greedyArr do
-        let (greedyExpandedNodes, greedyCost, greedyBranching, runningTimeGreedy) = gT
-        totalExpandedNodes <- totalExpandedNodes + greedyExpandedNodes
-        totalCost <- totalCost + greedyCost
-        totalBranching <- totalBranching + greedyBranching
-        runningTimeTotal <- runningTimeTotal + runningTimeGreedy 
-        counter <- counter + 1
-      printfn "%i" counter
-      averageResultsGreedy <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsGreedy
-      
-    let findAverageAStar aStarArr =
-      let mutable counter = 0
-      let mutable totalExpandedNodes = 0
-      let mutable totalCost = 0
-      let mutable totalBranching = 0
-      let mutable runningTimeTotal = 0.0
+    averageResultsAStar <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsAStar
+    
+  fprintf file "%s" ("Part 1-- Solvable Greedy: " + string(solvableGreedy) + " Unsolvable/Timed Out: " + string(250-solvableGreedy))
+  fprintf file "\n"
+  fprintf file "%s" ("Part 1-- Solvable A*: " + string(solvableAStar) + " Unsolvable/Timed Out: " + string(250-solvableAStar))
+  fprintf file "\n"
 
-      for gT in aStarArr do
-        let (aStarExpandedNodes, aStarCost, aStarBranching, runningTimeAStar) = gT
-        totalExpandedNodes <- totalExpandedNodes + aStarExpandedNodes
-        totalCost <- totalCost + aStarCost
-        totalBranching <- totalBranching + aStarBranching
-        runningTimeTotal <- runningTimeTotal + runningTimeAStar 
-        counter <- counter + 1
 
-     
+  findAverageGreedy greedy8
+  findAverageGreedy greedy9
+  findAverageGreedy greedy10
+  findAverageGreedy greedy11
+  findAverageGreedy greedy12
 
-      averageResultsAStar <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsAStar
-      
-    fprintf file "%s" ("Part 1-- Solvable Greedy: " + string(solvableGreedy) + " Unsolvable/Timed Out: " + string(250-solvableGreedy))
+  averageResultsGreedy <- reverse averageResultsGreedy
+
+  let mutable mSize = 8
+  for x in averageResultsGreedy do
+    let (expandedNodes, cost, branching, runningTime) = x
+    fprintf file "%s" ("Part 2--Greedy Best Result " + string(mSize) + "x" + string(mSize) + "Average Expanded Nodes: " + string(expandedNodes) + " " + " Average Cost: " + string(cost) + " Average Branching: " + string(branching) + " Average running time: " + string(runningTime))
     fprintf file "\n"
-    fprintf file "%s" ("Part 1-- Solvable A*: " + string(solvableAStar) + " Unsolvable/Timed Out: " + string(250-solvableAStar))
+    mSize <- mSize + 1
+
+  findAverageAStar aStar8
+  findAverageAStar aStar9
+  findAverageAStar aStar10
+  findAverageAStar aStar11
+  findAverageAStar aStar12
+
+  averageResultsAStar <- reverse averageResultsAStar
+  mSize <- 8
+  for x in averageResultsAStar do
+    let (expandedNodes, cost, branching, runningTime) = x
+    fprintf file "%s" ("Part 2--A* " + string(mSize) + "x" + string(mSize) + "Average Expanded Nodes: " + string(expandedNodes) + " " + " Average Cost: " + string(cost) + " Average Branching: " + string(branching) + " Average running time: " + string(runningTime))
     fprintf file "\n"
-
-    printfn "%s" "slaty"
-    printfn "%A" greedy8
-    findAverageGreedy greedy8
-    findAverageGreedy greedy9
-    findAverageGreedy greedy10
-    findAverageGreedy greedy11
-    findAverageGreedy greedy12
-
-    averageResultsGreedy <- reverse averageResultsGreedy
-
-    let mutable mSize = 8
-    for x in averageResultsGreedy do
-      let (expandedNodes, cost, branching, runningTime) = x
-      fprintf file "%s" ("Part 2--" + string(mSize) + "x" + string(mSize) + "Average Expanded Nodes: " + string(expandedNodes) + " " + " Average Cost: " + string(cost) + " Aveage Branching: " + string(branching) + " Average running time: " + string(runningTime))
-      fprintf file "\n"
-      mSize <- mSize + 1
-
-    findAverageAStar aStar8
-    findAverageAStar aStar9
-    findAverageAStar aStar10
-    findAverageAStar aStar11
-    findAverageAStar aStar12
-
-    averageResultsAStar <- reverse averageResultsAStar
-    mSize <- 8
-    for x in averageResultsAStar do
-      let (expandedNodes, cost, branching, runningTime) = x
-      fprintf file "%s" ("Part 2--" + string(mSize) + "x" + string(mSize) + "Average Expanded Nodes: " + string(expandedNodes) + " " + " Average Cost: " + string(cost) + " Aveage Branching: " + string(branching) + " Average running time: " + string(runningTime))
-      fprintf file "\n"
-      mSize <- mSize + 1
+    mSize <- mSize + 1
 
 
           
