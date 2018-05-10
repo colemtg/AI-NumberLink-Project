@@ -669,15 +669,34 @@ let printNumbersToFile fileName =
   fprintf file "%s" ("Part 1-- Solvable A*: " + string(solvableAStar) + " Unsolvable/Timed Out: " + string(250-solvableAStar))
   fprintf file "\n"
 
-
-  findAverageGreedy greedy8
-  findAverageGreedy greedy9
-  findAverageGreedy greedy10
-  findAverageGreedy greedy11
-  findAverageGreedy greedy12
+  if greedy8.Length > 0 then
+    findAverageGreedy greedy8
+  else 
+    averageResultsGreedy <- (0, 0, 0, 0.0) :: averageResultsGreedy
+  
+  if greedy9.Length > 0 then
+    findAverageGreedy greedy9
+  else 
+    averageResultsGreedy <- (0, 0, 0, 0.0) :: averageResultsGreedy
+  
+  if greedy10.Length > 0 then
+    findAverageGreedy greedy10
+  else 
+    averageResultsGreedy <- (0, 0, 0, 0.0) :: averageResultsGreedy
+  
+  if greedy11.Length > 0 then
+    findAverageGreedy greedy11
+  else 
+    averageResultsGreedy <- (0, 0, 0, 0.0) :: averageResultsGreedy
+  
+  if greedy12.Length > 0 then
+    findAverageGreedy greedy12
+  else 
+    averageResultsGreedy <- (0, 0, 0, 0.0) :: averageResultsGreedy
 
   averageResultsGreedy <- reverse averageResultsGreedy
-
+  
+  printfn "%A" averageResultsGreedy
   let mutable mSize = 8
   for x in averageResultsGreedy do
     let (expandedNodes, cost, branching, runningTime) = x
@@ -685,13 +704,34 @@ let printNumbersToFile fileName =
     fprintf file "\n"
     mSize <- mSize + 1
 
-  findAverageAStar aStar8
-  findAverageAStar aStar9
-  findAverageAStar aStar10
-  findAverageAStar aStar11
-  findAverageAStar aStar12
+  if aStar8.Length > 0 then
+    findAverageAStar aStar8
+  else 
+    averageResultsAStar <- (0, 0, 0, 0.0) :: averageResultsAStar
+  
+  if aStar9.Length > 0 then
+    findAverageAStar aStar9
+  else 
+    averageResultsAStar <- (0, 0, 0, 0.0) :: averageResultsAStar
+  
+  if aStar10.Length > 0 then
+    findAverageAStar aStar10
+  else 
+    averageResultsAStar <- (0, 0, 0, 0.0) :: averageResultsAStar
+  
+  if aStar11.Length > 0 then
+    findAverageAStar aStar11
+  else 
+    averageResultsAStar <- (0, 0, 0, 0.0) :: averageResultsAStar
+  
+  if aStar12.Length > 0 then
+    findAverageAStar aStar12
+  else 
+    averageResultsAStar <- (0, 0, 0, 0.0) :: averageResultsAStar
 
   averageResultsAStar <- reverse averageResultsAStar
+
+  printfn "%A" averageResultsAStar
   mSize <- 8
   for x in averageResultsAStar do
     let (expandedNodes, cost, branching, runningTime) = x
