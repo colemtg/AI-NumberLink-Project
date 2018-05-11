@@ -1,12 +1,12 @@
-Part 1-- Solvable Greedy: 2 Unsolvable/Timed Out: 248
-Part 1-- Solvable A*: 2 Unsolvable/Timed Out: 248
-Part 2--Greedy Best Result 8x8Average Expanded Nodes: 15  Average Cost: 14 Average Branching: 4 Average running time: 30.203
-Part 2--Greedy Best Result 9x9Average Expanded Nodes: 0  Average Cost: 0 Average Branching: 0 Average running time: 0
-Part 2--Greedy Best Result 10x10Average Expanded Nodes: -69  Average Cost: 14 Average Branching: 4 Average running time: 0.1048
-Part 2--Greedy Best Result 11x11Average Expanded Nodes: 0  Average Cost: 0 Average Branching: 0 Average running time: 0
+Part 1-- Solvable Greedy: 11 Unsolvable/Timed Out: 239
+Part 1-- Solvable A*: 9 Unsolvable/Timed Out: 241
+Part 2--Greedy Best Result 8x8Average Expanded Nodes: 185  Average Cost: 31 Average Branching: 22 Average running time: 36.4286
+Part 2--Greedy Best Result 9x9Average Expanded Nodes: 40  Average Cost: 26 Average Branching: 23 Average running time: 11.2331
+Part 2--Greedy Best Result 10x10Average Expanded Nodes: 479  Average Cost: 37 Average Branching: 32 Average running time: 28.46235
+Part 2--Greedy Best Result 11x11Average Expanded Nodes: -69  Average Cost: 27 Average Branching: 36 Average running time: 0.0705
 Part 2--Greedy Best Result 12x12Average Expanded Nodes: 0  Average Cost: 0 Average Branching: 0 Average running time: 0
-Part 2--A* 8x8Average Expanded Nodes: 42  Average Cost: 14 Average Branching: 4 Average running time: 11.402
-Part 2--A* 9x9Average Expanded Nodes: 0  Average Cost: 0 Average Branching: 0 Average running time: 0
-Part 2--A* 10x10Average Expanded Nodes: -69  Average Cost: 14 Average Branching: 4 Average running time: 0.0727
-Part 2--A* 11x11Average Expanded Nodes: 0  Average Cost: 0 Average Branching: 0 Average running time: 0
+Part 2--A* 8x8Average Expanded Nodes: 417  Average Cost: 29 Average Branching: 20 Average running time: 18.4035
+Part 2--A* 9x9Average Expanded Nodes: 131  Average Cost: 26 Average Branching: 23 Average running time: 18.21554
+Part 2--A* 10x10Average Expanded Nodes: 8710  Average Cost: 46 Average Branching: 32 Average running time: 541.29615
+Part 2--A* 11x11Average Expanded Nodes: -69  Average Cost: 27 Average Branching: 36 Average running time: 0.0662
 Part 2--A* 12x12Average Expanded Nodes: 0  Average Cost: 0 Average Branching: 0 Average running time: 0
