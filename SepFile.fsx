@@ -541,7 +541,8 @@ let mutable runningTimeGreedy = 0.0
 let mutable runningTimeAStar = 0.0
 let mutable thetimes = []
 //iterate through all puzzles and run greedy best first search and A* on them. Collect timethey take
-//and add the times as a tuple to the thetimes array.
+//and add the times as a tuple to the thetimes array. Stopwatch is used to get the running times. THis
+//is very important since it used to calculate whether a puzzle is unsolvable. 
 
 for i in getPuzzles do
   let stopWatch = System.Diagnostics.Stopwatch.StartNew()
@@ -573,6 +574,7 @@ let filePath = "AI-NumberLink-Project/analysis_results.txt"
 let fullPath = Path.Combine(baseDirectory'.FullName, filePath)
 
 type aggregateStat = int * int * int * int * int
+//This is where we do the testing of the greedy best first search and A*. 
 let printNumbersToFile fileName =
   use file = System.IO.File.CreateText(fileName)
 
@@ -592,13 +594,14 @@ let printNumbersToFile fileName =
   let mutable aStar10 = []
   let mutable aStar11 = []
   let mutable aStar12 = []
-   //let mutable greedy 
-
+ 
+  //iterate through the running times to calculate the stats needed for search
   for tup in thetimes do
     let (mVal, greedyTup, aStarTup) = tup
     let (_, _, _, runningTimeGreedy) = greedyTup
     let (_, _, _, runningTimeAStar) = aStarTup
-
+    //if didn't time out, do calculation
+    //Check m value (size of board) and add to the appropriate array
     if(runningTimeGreedy < 100000.0) then
       if(mVal = 8) then
         greedy8 <- greedyTup :: greedy8
@@ -612,7 +615,7 @@ let printNumbersToFile fileName =
         greedy12 <- greedyTup :: greedy12
 
       solvableGreedy <- solvableGreedy + 1
-
+    //Check m value (size of board) and add to the appropriate array
     if(runningTimeAStar < 100000.0) then
       if(mVal = 8) then
         aStar8 <- aStarTup :: aStar8
@@ -631,15 +634,18 @@ let printNumbersToFile fileName =
 
   let mutable averageResultsGreedy = [] 
   let mutable averageResultsAStar = []   
-
+  //iterate through all the solution and get the averages 
   let findAverageGreedy greedyArr =
     let mutable counter = 0
     let mutable totalExpandedNodes = 0
     let mutable totalCost = 0
     let mutable totalBranching = 0
     let mutable runningTimeTotal = 0.0
+    //iterate through the array to calculate the average for greedy search. Same
+    //is done but for A*
     for gT in greedyArr do
       let (greedyExpandedNodes, greedyCost, greedyBranching, runningTimeGreedy) = gT
+   
       totalExpandedNodes <- totalExpandedNodes + greedyExpandedNodes
       totalCost <- totalCost + greedyCost
       totalBranching <- totalBranching + greedyBranching
@@ -647,6 +653,9 @@ let printNumbersToFile fileName =
       counter <- counter + 1
     averageResultsGreedy <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsGreedy
     
+    printfn "%s" "counterGreedy "
+    printfn "%i" counter
+
   let findAverageAStar aStarArr =
     let mutable counter = 0
     let mutable totalExpandedNodes = 0
@@ -656,6 +665,7 @@ let printNumbersToFile fileName =
 
     for gT in aStarArr do
       let (aStarExpandedNodes, aStarCost, aStarBranching, runningTimeAStar) = gT
+   
       totalExpandedNodes <- totalExpandedNodes + aStarExpandedNodes
       totalCost <- totalCost + aStarCost
       totalBranching <- totalBranching + aStarBranching
@@ -663,12 +673,15 @@ let printNumbersToFile fileName =
       counter <- counter + 1
 
     averageResultsAStar <- (totalExpandedNodes/counter, totalCost/counter, totalBranching/counter, runningTimeTotal/float(counter)) :: averageResultsAStar
-    
+
+    printfn "%s" "counterA* "
+    printfn "%i" counter  
+  
   fprintf file "%s" ("Part 1-- Solvable Greedy: " + string(solvableGreedy) + " Unsolvable/Timed Out: " + string(250-solvableGreedy))
   fprintf file "\n"
   fprintf file "%s" ("Part 1-- Solvable A*: " + string(solvableAStar) + " Unsolvable/Timed Out: " + string(250-solvableAStar))
   fprintf file "\n"
-
+  //Check if there were any solvable puzzles for the mxm puzzle
   if greedy8.Length > 0 then
     findAverageGreedy greedy8
   else 
@@ -740,6 +753,5 @@ let printNumbersToFile fileName =
     mSize <- mSize + 1
 
 
-          
-   
+      
 printNumbersToFile fullPath
